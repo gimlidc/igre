@@ -4,8 +4,8 @@ from matplotlib import pyplot
 import tensorflow as tf
 from time import time
 from termcolor import colored
-from idx2pixel_layer import Idx2PixelLayer
-from shift_metric import ShiftMetrics
+from tftools.idx2pixel_layer import Idx2PixelLayer
+from tftools.shift_metric import ShiftMetrics
 import matplotlib.pyplot as plt
 
 

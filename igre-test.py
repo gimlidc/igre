@@ -82,4 +82,31 @@ def igre_test(config, shift):
              use_gpu=config["train"]["use_gpu"],
              optimizer=config["train"]["optimizer"])
 
-igre_test('./input/config.yaml', (4, 9))
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        default="./input/config.yaml",
+        help="Config file for IGRE. For more see example file.",
+    )
+    parser.add_argument(
+        "-x",
+        "--x-shift",
+        type=float,
+        default=0,
+        help="x-Shift of the input data",
+    )
+    parser.add_argument(
+        "-y",
+        "--y-shift",
+        type=float,
+        default=0,
+        help="y-Shift of the input data",
+    )
+    args = parser.parse_args()
+    igre_test(args.config, (args.x_shift, args.y_shift))
