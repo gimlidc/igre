@@ -47,7 +47,6 @@ def igre_test(config, shift):
     print("\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"],"green") +
           " expected shift: " + colored(shift, "green") + "\n")
 
-
     dataset = np.float64(scipy.io.loadmat(config["matfile"])['data'])
     print("Data stats (before normalization): min = " + str(np.min(dataset)) + " max = " + str(np.max(dataset)))
     # data normalization - ranged
