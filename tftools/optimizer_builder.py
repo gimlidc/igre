@@ -11,6 +11,7 @@ def build_optimizer(config):
     :return:
         generated optimizer
     """
+    print("Building optimizer: " + str(config))
     return tf.train.AdamOptimizer(learning_rate=config["learning_rate"],
                                   beta1=config["beta1"],
                                   beta2=config["beta2"])

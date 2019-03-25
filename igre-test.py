@@ -38,6 +38,7 @@ def igre_test(config, shift, output):
     are shifted by shift[0] in x axis and by shift[1] in y axis.
     :param config: configuration of IGRE run
     :param shift: tuple containing shift in x and in y axis of input dimensions
+    :param output: output file for measured data
     :return: registration layer weights (i.e. computed shift)
     """
 
@@ -74,13 +75,13 @@ def igre_test(config, shift, output):
     print("\nCalling " + colored("IGRE\n", "green") + "...")
 
     bias, bias_history = igre.run(indexes + shift,
-             outputs,
-             visible=visible,
-             optimizer=build_optimizer(config["train"]["optimizer"]),
-             layers=config["layers"],
-             batch_size=config["train"]["batch_size"],
-             epochs=config["train"]["epochs"]
-             )
+                                  outputs,
+                                  visible=visible,
+                                  optimizer=build_optimizer(config["train"]["optimizer"]),
+                                  layers=config["layers"],
+                                  batch_size=config["train"]["batch_size"],
+                                  epochs=config["train"]["epochs"]
+                                  )
 
     if output is not None:
         with open(output, 'w') as ofile:

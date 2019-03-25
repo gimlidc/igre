@@ -8,15 +8,15 @@ from tftools.shift_metric import ShiftMetrics
 # import matplotlib.pyplot as plt
 
 
-def __trainNetworks(inputs,
-                    outputs,
-                    reg_layer_data,
-                    optimizer,
-                    layers=[25, 25],
-                    train_set_size=50000,
-                    batch_size=256,
-                    epochs=100
-                    ):
+def __train_networks(inputs,
+                     outputs,
+                     reg_layer_data,
+                     optimizer,
+                     layers=None,
+                     train_set_size=50000,
+                     batch_size=256,
+                     epochs=100,
+                     ):
     """
     This method builds ANN  with all layers - some layers for registration other layers for information gain computation
     and processes the training.
@@ -75,7 +75,7 @@ def __trainNetworks(inputs,
                         outputs,
                         epochs=epochs,
                         validation_split=0.2,
-                        verbose=0,
+                        verbose=1,
                         callbacks=callbacks,
                         batch_size=batch_size
                         )
@@ -98,15 +98,15 @@ def __trainNetworks(inputs,
     return model, history, shift_metric.bias_history
 
 
-def __informationGain(coords,
-                      target,
-                      visible,
-                      optimizer,
-                      layers,
-                      train_set_size: int = 25000,
-                      batch_size=256,
-                      epochs=100,
-                      ):
+def __information_gain(coords,
+                       target,
+                       visible,
+                       optimizer,
+                       layers=None,
+                       train_set_size: int = 25000,
+                       batch_size=256,
+                       epochs=100,
+                       ):
 
     if coords.shape[0] != target.shape[0] * visible.shape[1]:
         sys.exit("Error: dimension mismatch between 'target' and 'visible'")
@@ -121,15 +121,15 @@ def __informationGain(coords,
     outputs = target.reshape((target.shape[0] * target.shape[1], target.shape[2]))
 
     # train ANN
-    model, history, bias_history = __trainNetworks(coords,
-                                                   outputs,
-                                                   reg_layer_data=visible,
-                                                   optimizer=optimizer,
-                                                   layers=layers,
-                                                   train_set_size=train_set_size,
-                                                   batch_size=batch_size,
-                                                   epochs=epochs
-                                                   )
+    model, history, bias_history = __train_networks(coords,
+                                                    outputs,
+                                                    reg_layer_data=visible,
+                                                    optimizer=optimizer,
+                                                    layers=layers,
+                                                    train_set_size=train_set_size,
+                                                    batch_size=batch_size,
+                                                    epochs=epochs
+                                                    )
 
     # show output of the first two layers
     extrapolation = model.predict(coords, batch_size=batch_size)
@@ -144,17 +144,17 @@ def run(inputs,
         outputs,
         visible,
         optimizer,
-        layers=[25, 25],
+        layers=None,
         batch_size=256,
         epochs=100):
-    ig, extrapolation, model, bias_history = __informationGain(inputs,
-                                                               outputs,
-                                                               visible=visible,
-                                                               optimizer=optimizer,
-                                                               layers=layers,
-                                                               batch_size=batch_size,
-                                                               epochs=epochs,
-                                                               )
+    ig, extrapolation, model, bias_history = __information_gain(inputs,
+                                                                outputs,
+                                                                visible=visible,
+                                                                optimizer=optimizer,
+                                                                layers=layers,
+                                                                batch_size=batch_size,
+                                                                epochs=epochs,
+                                                                )
     # print model summary to stdout
     model.summary()
 

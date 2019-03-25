@@ -1,11 +1,10 @@
 import sys
 import numpy as np
 import tensorflow as tf
-import scipy.io
 from time import time
 
 
-def __trainNetworks(inputs, outputs, layers, training_set_size):
+def __train_networks(inputs, outputs, layers, training_set_size):
     """
     Train several networks and return the best one. Usage:
 
@@ -34,6 +33,8 @@ def __trainNetworks(inputs, outputs, layers, training_set_size):
     input_layer = tf.keras.layers.Input(shape=(inputs.shape[1],),
                                         dtype=tf.float32, name='InputLayer')
     layer = input_layer
+    if layers is None:
+        layers = [25, 25]
     for layer_idx in range(len(layers)):
         print('Adding dense layer, width =', layers[layer_idx])
         layer = tf.keras.layers.Dense(layers[layer_idx],
@@ -44,7 +45,7 @@ def __trainNetworks(inputs, outputs, layers, training_set_size):
     model = tf.keras.models.Model(inputs=input_layer, outputs=output_layer)
 
     start_time = time()
-    model.compile(optimizer='adam',  # TODO: change back to 'sgd' ??,
+    model.compile(optimizer='adam',
                   loss='mean_squared_error',
                   metrics=['mean_squared_error']
                   )
@@ -57,7 +58,7 @@ def __trainNetworks(inputs, outputs, layers, training_set_size):
                                                   min_delta=10 ** -5)]
     history = model.fit(ins,
                         outs,
-                        epochs=10,  # TODO: 10000,
+                        epochs=10,
                         validation_split=0.2,
                         verbose=1,
                         callbacks=callbacks
@@ -78,7 +79,7 @@ def __trainNetworks(inputs, outputs, layers, training_set_size):
 
 def information_gain(visible,
                      target,
-                     layers=[25, 25],
+                     layers=None,
                      training_set_size: int = 25000):
     """
     Compute information gain of the target for visible. Usage:
@@ -120,7 +121,7 @@ def information_gain(visible,
     outputs = target.reshape((target.shape[0] * target.shape[1], target.shape[2]))
 
     # train ANN
-    model, history = __trainNetworks(inputs, outputs, layers, training_set_size)
+    model, history = __train_networks(inputs, outputs, layers, training_set_size)
 
     extrapolation = model.predict(inputs)
     extrapolation = extrapolation.reshape(target.shape)
@@ -128,13 +129,3 @@ def information_gain(visible,
     inf_gain = target - extrapolation
 
     return inf_gain, extrapolation, model
-
-
-if __name__ == "__main__":
-    input = scipy.io.loadmat('/Users/gimli/Qsync/MATLAB/vlasic-dataset.mat')
-    input_data = input['data']
-    visible = np.asarray(input_data[:, :, 0:15]).astype(np.float64) / 255
-    target = np.asarray(input_data[:, :, 26]).astype(np.float64) / 255
-    ig, approx, net = information_gain(visible, target)
-
-    print("Approx done.")
