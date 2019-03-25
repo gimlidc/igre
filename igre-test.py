@@ -3,6 +3,7 @@ import scipy.io
 import numpy as np
 import igre
 from termcolor import colored
+from tftools.optimizer_builder import build_optimizer
 
 
 def check_config(config):
@@ -31,7 +32,7 @@ def data_crop(config, dataset):
     return dataset
 
 
-def igre_test(config, shift):
+def igre_test(config, shift, output):
     """
     Information gain and registration test works with registered inputs. For testing registration layer, input pixels
     are shifted by shift[0] in x axis and by shift[1] in y axis.
@@ -72,14 +73,26 @@ def igre_test(config, shift):
 
     print("\nCalling " + colored("IGRE\n", "green") + "...")
 
-    igre.run(indexes + shift,
+    bias, bias_history = igre.run(indexes + shift,
              outputs,
              visible=visible,
+             optimizer=build_optimizer(config["train"]["optimizer"]),
              layers=config["layers"],
              batch_size=config["train"]["batch_size"],
-             epochs=config["train"]["epochs"],
-             use_gpu=config["train"]["use_gpu"],
-             optimizer=config["train"]["optimizer"])
+             epochs=config["train"]["epochs"]
+             )
+
+    if output is not None:
+        with open(output, 'w') as ofile:
+            config["bias"] = {
+                "x": float(bias[0][0]),
+                "y": float(bias[0][1])
+            }
+            config["bias_history"] = {
+                "x": [float(hist[0][0]) for hist in bias_history],
+                "y": [float(hist[0][1]) for hist in bias_history]
+            }
+            ofile.write(yaml.dump(config))
 
 
 if __name__ == "__main__":
@@ -107,5 +120,11 @@ if __name__ == "__main__":
         default=0,
         help="y-Shift of the input data",
     )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        help="yaml output file, where collected data will be placed",
+    )
     args = parser.parse_args()
-    igre_test(args.config, (args.x_shift, args.y_shift))
+    igre_test(args.config, (args.x_shift, args.y_shift), args.output)
