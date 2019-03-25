@@ -5,7 +5,7 @@ from time import time
 from termcolor import colored
 from tftools.idx2pixel_layer import Idx2PixelLayer
 from tftools.shift_metric import ShiftMetrics
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 def __train_networks(inputs,
@@ -75,13 +75,13 @@ def __train_networks(inputs,
                         outputs,
                         epochs=epochs,
                         validation_split=0.2,
-                        verbose=1,
+                        verbose=0,
                         callbacks=callbacks,
                         batch_size=batch_size
                         )
 
-    # plt.plot(np.array(shift_metric.bias_history)[:, 0])
-    # plt.show()
+    plt.plot(np.array(shift_metric.bias_history)[:, 0])
+    plt.show()
 
     elapsed_time = time() - start_time
     num_epochs = len(history.history['loss'])
