@@ -9,15 +9,15 @@ crop:
 layers:
   - 1
 input_dimensions:
-  min: 16
-  max: 16 # maximum is included into selection
+  min: 26
+  max: 26 # maximum is included into selection
 output_dimensions:
-  min: 16
-  max: 16
+  min: 26
+  max: 26
 expected_max_shift_px: 20
 train:
   batch_size: 2048
-  epochs: 50
+  epochs: 150
   use_gpu: false
   optimizer:
     family: "adam"

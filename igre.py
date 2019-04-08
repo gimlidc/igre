@@ -75,7 +75,7 @@ def __train_networks(inputs,
                         outputs,
                         epochs=epochs,
                         validation_split=0.2,
-                        verbose=0,
+                        verbose=1,
                         callbacks=callbacks,
                         batch_size=batch_size
                         )

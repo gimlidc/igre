@@ -4,7 +4,7 @@ import numpy as np
 import igre
 from termcolor import colored
 from tftools.optimizer_builder import build_optimizer
-
+import matplotlib.pyplot as plt
 
 def check_config(config):
     if "layers" in config:
@@ -46,7 +46,7 @@ def igre_test(config, shift, output):
     config = yaml.load(open(config, 'r'), Loader=yaml.FullLoader)
     check_config(config)
 
-    print("\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"],"green") +
+    print("\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
           " expected shift: " + colored(shift, "green") + "\n")
 
     dataset = np.float64(scipy.io.loadmat(config["matfile"])['data'])
@@ -58,17 +58,19 @@ def igre_test(config, shift, output):
     dataset = data_crop(config, dataset)
 
     print(colored("Input", "green") + " dimensions: " + colored(("[" +
-                       str(config["input_dimensions"]["min"]) + "-" +
-                       str(config["input_dimensions"]["max"]) + "]"), "green"))
+                                                                 str(config["input_dimensions"]["min"]) + "-" +
+                                                                 str(config["input_dimensions"]["max"]) + "]"),
+                                                                "green"))
     visible = dataset[:, :, config["input_dimensions"]["min"]: config["input_dimensions"]["max"] + 1]
+    plt.imshow(visible[:,:,0], cmap='gray')
+    plt.show()
     indexes = np.indices(visible.shape[:-1]).reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
 
     print("\tInputs shape: " + str(visible.shape))
     print(colored("Output", "green") + " dimensions: " + colored(("[" +
-                                                                              str(config["output_dimensions"][
-                                                                                      "min"]) + "-" +
-                                                                              str(config["output_dimensions"][
-                                                                                      "max"]) + "]"), "green"))
+                                                                  str(config["output_dimensions"]["min"]) + "-" +
+                                                                  str(config["output_dimensions"]["max"]) + "]"),
+                                                                 "green"))
     outputs = dataset[:, :, config["output_dimensions"]["min"]: config["output_dimensions"]["max"] + 1]
     print("\tOutput shape: " + str(outputs.shape))
 
