@@ -39,4 +39,4 @@ def load_all_images(path, convert_to_grayscale=True):
         "filenames": filenames,
         "resolutions": resolutions
     }
-    return out, metadata
+    return np.asarray(out).astype(np.float32) / 255, metadata
