@@ -34,3 +34,26 @@ def draw(intensity_cube, metadata=None, modality_indexes=None):
             plt.title(str("(" + str(i) + ")" + metadata["filenames"][0][i]))
         plt.imshow(intensity_cube[0][:, :, i], cmap='gray')
     figure.show()
+
+
+def compare(imgA, imgB, grid=6):
+    """
+    Draw image composed from two inputs.
+    :param imgA: first image
+    :param imgB: second image
+    :param grid: number of rectangles in a row/column
+    :return: None just print images
+    """
+    gridx = np.linspace(0, imgA.shape[0], grid*2, dtype=np.int32)
+    gridy = np.linspace(0, imgA.shape[1], grid*2, dtype=np.int32)
+    out = imgA.copy()
+    for i in range(gridx[0::2].shape[0]):
+        for j in range(gridy[0::2].shape[0]):
+            out[gridx[0::2][i]: gridx[1::2][i], gridy[0::2][j]: gridy[1::2][j], :] = \
+                imgB[gridx[0::2][i]: gridx[1::2][i], gridy[0::2][j]: gridy[1::2][j], :]
+    for i in range(gridx[0::2].shape[0] - 1):
+        for j in range(gridy[0::2].shape[0] - 1):
+            out[gridx[1::2][i]:gridx[0::2][i + 1], gridy[1::2][j]:gridy[0::2][j + 1], :] = \
+                imgB[gridx[1::2][i]:gridx[0::2][i + 1], gridy[1::2][j]:gridy[0::2][j + 1], :]
+    plt.imshow(out)
+    plt.show()

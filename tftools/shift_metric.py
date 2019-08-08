@@ -1,4 +1,4 @@
-import tensorflow.keras.callbacks as cbks
+import tensorflow.python.keras.callbacks as cbks
 
 
 class ShiftMetrics(cbks.Callback):
