@@ -17,6 +17,7 @@ opencv-python = "*"
 pydot = "*"
 sklearn = "*"
 scikit-learn = "*"
+pipenv = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3.6"

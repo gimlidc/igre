@@ -17,6 +17,10 @@ output_dimensions:
 expected_max_shift_px: 20
 train:
   batch_size: 2048
-  epochs: 50
+  epochs: 150
   use_gpu: false
-  optimizer: "adam" # sgd, adagrad, ...
+  optimizer:
+    family: "adam"
+    learning_rate: 0.35
+    beta1: 0.01
+    beta2: 0.85
