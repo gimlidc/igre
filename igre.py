@@ -68,20 +68,24 @@ def __train_networks(inputs,
     print("Compiling model took {:.4f}'s.".format(elapsed_time))
 
     # train model
-    start_time = time()
-    shift_metric = ShiftMetrics()
-    callbacks = [shift_metric]
-    history = model.fit(indexes,
-                        outputs,
-                        epochs=epochs,
-                        validation_split=0.2,
-                        verbose=1,
-                        callbacks=callbacks,
-                        batch_size=batch_size
-                        )
 
-    plt.plot(np.array(shift_metric.bias_history)[:, 0])
-    plt.show()
+    start_time = time()
+    # doing thing iteratively, hardcoded version
+    aa = [50, 50, 50]
+    for blur_stages in range(outputs.shape[1]):
+        shift_metric = ShiftMetrics()
+        callbacks = [shift_metric]
+        history = model.fit(indexes,
+                            outputs[:, -(blur_stages+1)],
+                            epochs=aa[blur_stages],
+                            validation_split=0.2,
+                            verbose=1,
+                            callbacks=callbacks,
+                            batch_size=batch_size
+                            )
+
+        plt.plot(np.array(shift_metric.bias_history)[:, 0])
+        plt.show()
 
     elapsed_time = time() - start_time
     num_epochs = len(history.history['loss'])
@@ -133,7 +137,7 @@ def __information_gain(coords,
 
     # show output of the first two layers
     extrapolation = model.predict(coords, batch_size=batch_size)
-    extrapolation = extrapolation.reshape(target.shape)
+    extrapolation = extrapolation.reshape(target.shape[0], target.shape[1], 1)
 
     ig = target - extrapolation
 

@@ -5,6 +5,8 @@ import igre
 from termcolor import colored
 from tftools.optimizer_builder import build_optimizer
 import matplotlib.pyplot as plt
+import cv2
+
 
 def check_config(config):
     if "layers" in config:
@@ -62,9 +64,12 @@ def igre_test(config, shift, output):
                                                                  str(config["input_dimensions"]["max"]) + "]"),
                                                                 "green"))
     visible = dataset[:, :, config["input_dimensions"]["min"]: config["input_dimensions"]["max"] + 1]
-    plt.imshow(visible[:,:,0], cmap='gray')
+    plt.imshow(visible[:, :, 0], cmap='gray')
     plt.show()
-    indexes = np.indices(visible.shape[:-1]).reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
+    max_shift = config["expected_max_shift_px"]
+    x = visible.shape[:-1]
+    indexes = np.indices(x)
+    indexes = indexes.reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
 
     print("\tInputs shape: " + str(visible.shape))
     print(colored("Output", "green") + " dimensions: " + colored(("[" +
@@ -72,6 +77,15 @@ def igre_test(config, shift, output):
                                                                   str(config["output_dimensions"]["max"]) + "]"),
                                                                  "green"))
     outputs = dataset[:, :, config["output_dimensions"]["min"]: config["output_dimensions"]["max"] + 1]
+
+    # Adding gaussian blur to data
+    for b_size in [21, 51]:  # , 21, 31, 41, 51]:
+        blurred = cv2.GaussianBlur(outputs[:, :, 0], (b_size, b_size), 0)
+        blurred = blurred.reshape(blurred.shape[0], blurred.shape[1], 1)
+        plt.imshow(blurred[:, :, 0], cmap='gray')
+        plt.show()
+        outputs = np.append(outputs, blurred, axis=2)
+
     print("\tOutput shape: " + str(outputs.shape))
 
     print("\nCalling " + colored("IGRE\n", "green") + "...")
