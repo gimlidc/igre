@@ -135,7 +135,9 @@ def linear_interpolation(coords):
     visible = global_visible
 
     # calculate index of top-left point
-    coords = tf.maximum(coords, tf.zeros(tf.shape(visible.shape[:-1]), dtype=tf.float32))
+    coords = tf.mod(coords, visible.shape.as_list()[:-1])
+    # sess = tf.compat.v1.InteractiveSession()  # for debug purposes
+
     idx_low = tf.floor(coords)
 
     # idx_low at most second-to-last element
@@ -166,6 +168,7 @@ def linear_interpolation(coords):
                                                  tf.subtract(mid_top, mid_bottom)))
 
     # This will produce Jacobian of size [batch_size, 2, input_dims]
+    # tady pocitat pres vetsi okolicko
     jacob = tf.stack([tf.subtract(mid_right, mid_left), tf.subtract(mid_bottom, mid_top)],
                      axis=1)
 
