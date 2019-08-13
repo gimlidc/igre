@@ -31,10 +31,10 @@ def bicubic_interpolation(coords):
     idx_low = tf.floor(coords)
     delta = tf.cast(tf.subtract(coords, idx_low), dtype=tf.float32)
 
-    f00 = tf.gather_nd(visible, tf.cast(idx_low, tf.int32))
-    f01 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [0, 1]), tf.int32))
-    f10 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 0]), tf.int32))
-    f11 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 1]), tf.int32))
+    f00 = tf.gather_nd(visible, tf.cast(idx_low, dtype=tf.int32))
+    f01 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [0, 1]), dtype=tf.int32))
+    f10 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 0]), dtype=tf.int32))
+    f11 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 1]), dtype=tf.int32))
 
     fx00 = tf.subtract(tf.gather_nd(visible, tf.cast(tf.add(idx_low, [-1, 0]), tf.int32)),
                        tf.gather_nd(visible, tf.cast(tf.add(idx_low, [+1, 0]), tf.int32)))
@@ -135,7 +135,8 @@ def linear_interpolation(coords):
     visible = global_visible
 
     # calculate index of top-left point
-    coords = tf.mod(coords, visible.shape.as_list()[:-1])
+    coords = tf.mod(coords, tf.subtract(tf.cast(visible.shape.as_list()[:-1], dtype=tf.float32), 3))
+    coords = tf.add(coords, 1)
     # sess = tf.compat.v1.InteractiveSession()  # for debug purposes
 
     idx_low = tf.floor(coords)
@@ -168,9 +169,35 @@ def linear_interpolation(coords):
                                                  tf.subtract(mid_top, mid_bottom)))
 
     # This will produce Jacobian of size [batch_size, 2, input_dims]
-    # tady pocitat pres vetsi okolicko
-    jacob = tf.stack([tf.subtract(mid_right, mid_left), tf.subtract(mid_bottom, mid_top)],
-                     axis=1)
+    # Take bigger neighbourhood around the coord
+    ttl = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [0, -1]), tf.int32))
+    ttr = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, -1]), tf.int32))
+    bbl = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [0, 2]), tf.int32))
+    bbr = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 2]), tf.int32))
+    tll = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [-1, 0]), tf.int32))
+    trr = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [2, 0]), tf.int32))
+    bll = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [-1, 1]), tf.int32))
+    brr = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [2, 1]), tf.int32))
+
+    mid_bb = tf.add(bbr, tf.einsum("i,ij->ij", delta[:, 0], tf.subtract(bbl, bbr)))
+    mid_tt = tf.add(ttr, tf.einsum("i,ij->ij", delta[:, 0], tf.subtract(ttl, ttr)))
+    mid_ll = tf.add(bll, tf.einsum("i,ij->ij", delta[:, 1], tf.subtract(tll, bll)))
+    mid_rr = tf.add(brr, tf.einsum("i,ij->ij", delta[:, 1], tf.subtract(trr, brr)))
+
+    d_x_r = tf.subtract(mid_rr, mid_right)
+    d_x_c = tf.subtract(mid_right, mid_left)
+    d_x_l = tf.subtract(mid_left, mid_ll)
+    d_y_t = tf.subtract(mid_top, mid_tt)
+    d_y_c = tf.subtract(mid_bottom, mid_top)
+    d_y_b = tf.subtract(mid_bb, mid_bottom)
+
+    # Weighted average of the derivatives
+    d_x = tf.multiply(tf.add(d_x_r, d_x_l), 0.5)
+    d_x = tf.multiply(tf.add(d_x, d_x_c), 0.5)
+    d_y = tf.multiply(tf.add(d_y_t, d_y_b), 0.5)
+    d_y = tf.multiply(tf.add(d_y, d_y_c), 0.5)
+
+    jacob = tf.stack([d_x, d_y], axis=1)
 
     def grad(dy):
         """ This method should return tensor of gradients [batch_size, 2]"""
