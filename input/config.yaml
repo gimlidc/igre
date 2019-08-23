@@ -4,8 +4,8 @@ crop:
     x: 0
     y: 0
   size:
-    width: 401
-    height: 401
+    width: 300
+    height: 400
 layers:
   - 1
 input_dimensions:
