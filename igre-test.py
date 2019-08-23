@@ -1,32 +1,29 @@
 import yaml
-import scipy.io
-import numpy as np
 import igre
-from termcolor import colored
 from tftools.optimizer_builder import build_optimizer
-import matplotlib.pyplot as plt
-import cv2
+import utils
+from utils import *
 
 
-def check_config(config):
-    if "layers" in config:
+def check_config(conf):
+    if "layers" in conf:
         print("Config integrity: " + colored("OK", "green"))
     else:
         print("Config integrity: " + colored("FAILED", "red"))
         exit(1)
 
 
-def data_crop(config, dataset):
+def data_crop(conf, dataset):
     if "crop" in config:
         print("Data crop ... " + colored("YES", "green") + ":")
         print("\t["
-              + str(config["crop"]["left_top"]["x"]) + ":"
-              + str(config["crop"]["left_top"]["x"] + config["crop"]["size"]["width"]) + ", "
-              + str(config["crop"]["left_top"]["y"]) + ":"
-              + str(config["crop"]["left_top"]["y"] + config["crop"]["size"]["height"]) + ", :]")
+              + str(conf["crop"]["left_top"]["x"]) + ":"
+              + str(conf["crop"]["left_top"]["x"] + conf["crop"]["size"]["width"]) + ", "
+              + str(conf["crop"]["left_top"]["y"]) + ":"
+              + str(conf["crop"]["left_top"]["y"] + conf["crop"]["size"]["height"]) + ", :]")
         dataset = dataset[
-                  config["crop"]["left_top"]["x"]: (config["crop"]["left_top"]["x"] + config["crop"]["size"]["width"]),
-                  config["crop"]["left_top"]["y"]: (config["crop"]["left_top"]["y"] + config["crop"]["size"]["height"]),
+                  conf["crop"]["left_top"]["x"]: (conf["crop"]["left_top"]["x"] + conf["crop"]["size"]["width"]),
+                  conf["crop"]["left_top"]["y"]: (conf["crop"]["left_top"]["y"] + conf["crop"]["size"]["height"]),
                   :]
     else:
         print("Data crop: " + colored("NO", "red"))
@@ -34,63 +31,72 @@ def data_crop(config, dataset):
     return dataset
 
 
-def igre_test(config, shift, output):
+def igre_test(conf, shift, output):
     """
     Information gain and registration test works with registered inputs. For testing registration layer, input pixels
     are shifted by shift[0] in x axis and by shift[1] in y axis.
-    :param config: configuration of IGRE run
+    :param conf: configuration of IGRE run
     :param shift: tuple containing shift in x and in y axis of input dimensions
     :param output: output file for measured data
     :return: registration layer weights (i.e. computed shift)
     """
 
     # Config load and integrity check
-    config = yaml.load(open(config, 'r'), Loader=yaml.FullLoader)
+    utils.config = yaml.load(open(conf, 'r'), Loader=yaml.FullLoader)
+    config = utils.config
+    utils.shift_multi = config["train"]["shift_learning_multi"]
+    try:  # abusing not having verbose in config = disabled
+        utils.verbose = utils.config["verbose"]
+    except:
+        utils.verbose = 0
+
     check_config(config)
 
-    print("\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
+    v_print("\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
           " expected shift: " + colored(shift, "green") + "\n")
 
     dataset = np.float64(scipy.io.loadmat(config["matfile"])['data'])
-    print("Data stats (before normalization): min = " + str(np.min(dataset)) + " max = " + str(np.max(dataset)))
+    v_print("Data stats (before normalization): min = " + str(np.min(dataset)) + " max = " + str(np.max(dataset)))
     # data normalization - ranged
     dataset = (dataset - np.min(dataset)) / (np.max(dataset) - np.min(dataset))
 
-    print("Dataset shape: " + str(dataset.shape))
+    v_print("Dataset shape: " + str(dataset.shape))
     dataset = data_crop(config, dataset)
 
-    print(colored("Input", "green") + " dimensions: " + colored(("[" +
+    v_print(colored("Input", "green") + " dimensions: " + colored(("[" +
                                                                  str(config["input_dimensions"]["min"]) + "-" +
                                                                  str(config["input_dimensions"]["max"]) + "]"),
                                                                 "green"))
     visible = dataset[:, :, config["input_dimensions"]["min"]: config["input_dimensions"]["max"] + 1]
-    plt.imshow(visible[:, :, 0], cmap='gray')
-    plt.show()
-    max_shift = config["expected_max_shift_px"]
+    v_imshow(visible[:, :, 0])
+
     x = visible.shape[:-1]
     indexes = np.indices(x)
     indexes = indexes.reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
 
-    print("\tInputs shape: " + str(visible.shape))
-    print(colored("Output", "green") + " dimensions: " + colored(("[" +
+    v_print("\tInputs shape: " + str(visible.shape))
+    v_print(colored("Output", "green") + " dimensions: " + colored(("[" +
                                                                   str(config["output_dimensions"]["min"]) + "-" +
                                                                   str(config["output_dimensions"]["max"]) + "]"),
                                                                  "green"))
     outputs = dataset[:, :, config["output_dimensions"]["min"]: config["output_dimensions"]["max"] + 1]
 
     # Adding gaussian blur to data
-    for b_size in [21, 51]:  # , 21, 31, 41, 51]:
-        blurred = cv2.GaussianBlur(outputs[:, :, 0], (b_size, b_size), 0)
-        blurred = blurred.reshape(blurred.shape[0], blurred.shape[1], 1)
-        plt.imshow(blurred[:, :, 0], cmap='gray')
-        plt.show()
-        outputs = np.append(outputs, blurred, axis=2)
+    # for b_size in [21, 51]:  # , 21, 31, 41, 51]:
+    #    blurred = cv2.GaussianBlur(outputs[:, :, 0], (b_size, b_size), 0)
+    #    blurred = blurred.reshape(blurred.shape[0], blurred.shape[1], 1)
+    #    plt.imshow(blurred[:, :, 0], cmap='gray')
+    #    plt.show()
+    #    outputs = np.append(outputs, blurred, axis=2)
 
-    print("\tOutput shape: " + str(outputs.shape))
+    v_print("\tOutput shape: " + str(outputs.shape))
 
-    print("\nCalling " + colored("IGRE\n", "green") + "...")
+    v_print("\nCalling " + colored("IGRE\n", "green") + "...")
 
-    bias, bias_history = igre.run(indexes + shift,
+    # coordinate transform up to perspective transform
+    T = Transformation(  c=shift)  # a=(1.1, -0.1), b=(0.1, 0.9),
+    inputs = T.transform(indexes)
+    bias, bias_history = igre.run(inputs,
                                   outputs,
                                   visible=visible,
                                   optimizer=build_optimizer(config["train"]["optimizer"]),
@@ -110,6 +116,10 @@ def igre_test(config, shift, output):
                 "y": [float(hist[0][1]) for hist in bias_history]
             }
             ofile.write(yaml.dump(config))
+
+
+def transformation(coordinates, shift):
+    return coordinates+shift
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 matfile: 'C:/Pycharm_projects/igre/input/vlasic.mat'
+verbose: 0
 crop:
   left_top:
     x: 0
@@ -15,10 +16,17 @@ output_dimensions:
   min: 27
   max: 27
 expected_max_shift_px: 20
+blur_sizes:
+  - 51
+  - 21
+epochs_per_blur:
+  - 75
+  - 75
 train:
   batch_size: 2048
   epochs: 150
   use_gpu: false
+  shift_learning_multi: 350 # to achieve different learning rate for shift and rotation
   optimizer:
     family: "adam"
     learning_rate: 0.35

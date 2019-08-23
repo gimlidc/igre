@@ -1,11 +1,10 @@
 import sys
-import numpy as np
 import tensorflow as tf
 from time import time
-from termcolor import colored
 from tftools.idx2pixel_layer import Idx2PixelLayer
 from tftools.shift_metric import ShiftMetrics
-import matplotlib.pyplot as plt
+import utils
+from utils import *
 
 
 def __train_networks(inputs,
@@ -39,6 +38,10 @@ def __train_networks(inputs,
         trained model and training history
     """
     print('Selecting', train_set_size, 'samples randomly for use by algorithm.')
+
+    # FUTURE: wavelet decomposition
+    outputs = blur_preprocessing(outputs, reg_layer_data.shape)
+
     perm = np.random.permutation(inputs.shape[0])
     indexes = inputs[perm[:train_set_size], :]
     outputs = outputs[perm[:train_set_size], :]
@@ -70,22 +73,33 @@ def __train_networks(inputs,
     # train model
 
     start_time = time()
-    # doing thing iteratively, hardcoded version
-    aa = [50, 50, 50]
-    for blur_stages in range(outputs.shape[1]):
+    epochs_per_stage = utils.config["epochs_per_blur"]
+    epochs_per_stage.append(epochs)
+
+    for stage in range(len(epochs_per_stage)):
         shift_metric = ShiftMetrics()
         callbacks = [shift_metric]
         history = model.fit(indexes,
-                            outputs[:, -(blur_stages+1)],
-                            epochs=aa[blur_stages],
+                            outputs[:, stage],
+                            epochs=epochs_per_stage[stage],
                             validation_split=0.2,
                             verbose=1,
                             callbacks=callbacks,
                             batch_size=batch_size
                             )
 
-        plt.plot(np.array(shift_metric.bias_history)[:, 0])
+        bias_history = [x[0] for x in shift_metric.bias_history]  # extract the shift
+        bias_history = np.array(bias_history)
+        plt.plot(bias_history)  # plot the shift (c coeff)
         plt.show()
+
+        bias_history = [x[1][0:2] for x in shift_metric.bias_history]  # extract the a
+        bias_history = np.array(bias_history) / utils.shift_multi
+        v_plot(bias_history)  # plot the  (a coeff)
+
+        bias_history = [x[1][2:] for x in shift_metric.bias_history]  # extract the b
+        bias_history = np.array(bias_history) / utils.shift_multi
+        v_plot(bias_history)  # plot the  (b coeff)
 
     elapsed_time = time() - start_time
     num_epochs = len(history.history['loss'])
@@ -164,5 +178,23 @@ def run(inputs,
 
     layer_dict = dict([(layer.name, layer) for layer in model.layers])
     bias = layer_dict['Idx2PixelLayer'].get_weights()
-    print("Shift detected: " + colored(str(bias[0]), "green"))
+    print("linear coeffs (a): " + colored(str(bias[1][0:2]/utils.shift_multi), "green"))
+    print("linear coeffs (b): " + colored(str(bias[1][2:]/utils.shift_multi), "green"))
+    print("Shift detected (c): " + colored(str(bias[0]), "green"))
     return bias, bias_history
+
+
+def blur_preprocessing(image, img_size):
+    outputs = np.ones(image.shape)
+    img = image.reshape(img_size[0], img_size[1], -1)
+
+    blurs = utils.config["blur_sizes"]
+
+    for b_size in blurs:
+        blurred = cv2.GaussianBlur(img[:, :, 0], (b_size, b_size), 0)
+        blurred = blurred.reshape(blurred.shape[0], blurred.shape[1], 1)
+        blurred = blurred.reshape(blurred.shape[0] * blurred.shape[1], -1)
+        outputs = np.append(outputs, blurred, axis=1)
+
+    outputs = np.append(outputs, image, axis=1)
+    return outputs[:, 1:]
