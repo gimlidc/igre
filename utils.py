@@ -5,27 +5,44 @@ from termcolor import colored
 import matplotlib.pyplot as plt
 
 # globals
-verbose = 0  # print flag, can be extended to levels e.g. 0 = nothing ... 3 = without images ... 5 = everything
+
+verbose_level = 1  # display flag, tied to Verbose "enum"
+#     always = -1       -  displays only things with always tag
+#     metacentrum = 0   -  metacentrum setting, display almost nothing possibly dump into file
+#     normal = 1        -
+#     debug = 4         - display everything but things with never tag
+#     never = 666       -
+
 config = {}
 shift_multi = 350
 
 
-def v_print(a):
-    # global verbose
-    if verbose:
-        print(a)
+class Verbose:
+    # enum
+    always = -1  # always, prints this
+    metacentrum = 0
+    normal = 1
+    debug = 4
+    never = 666
 
+    # TODO: if level = metacentrum:
+    #              dump_to_file()
+    @staticmethod
+    def print(a, level=1):
+        if level <= verbose_level:
+            print(a)
 
-def v_imshow(a):
-    # global verbose
-    if verbose:
-        plt.imshow(a, cmap='gray')
-        plt.show()
+    @staticmethod
+    def imshow(a, level=1):
+        if level <= verbose_level:
+            plt.imshow(a, cmap='gray')
+            plt.show()
 
-def v_plot(a):
-    if verbose:
-        plt.plot(a)
-        plt.show()
+    @staticmethod
+    def plot(a, level=1):
+        if level <= verbose_level:
+            plt.plot(a)
+            plt.show()
 
 
 class Transformation:

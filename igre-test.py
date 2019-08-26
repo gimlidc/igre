@@ -7,26 +7,26 @@ from utils import *
 
 def check_config(conf):
     if "layers" in conf:
-        print("Config integrity: " + colored("OK", "green"))
+        print("Config integrity: " + colored("OK", "green"), Verbose.always)
     else:
-        print("Config integrity: " + colored("FAILED", "red"))
+        print("Config integrity: " + colored("FAILED", "red"), Verbose.always)
         exit(1)
 
 
 def data_crop(conf, dataset):
     if "crop" in config:
-        print("Data crop ... " + colored("YES", "green") + ":")
+        print("Data crop ... " + colored("YES", "green") + ":", Verbose.debug)
         print("\t["
               + str(conf["crop"]["left_top"]["x"]) + ":"
               + str(conf["crop"]["left_top"]["x"] + conf["crop"]["size"]["width"]) + ", "
               + str(conf["crop"]["left_top"]["y"]) + ":"
-              + str(conf["crop"]["left_top"]["y"] + conf["crop"]["size"]["height"]) + ", :]")
+              + str(conf["crop"]["left_top"]["y"] + conf["crop"]["size"]["height"]) + ", :]", Verbose.debug)
         dataset = dataset[
                   conf["crop"]["left_top"]["x"]: (conf["crop"]["left_top"]["x"] + conf["crop"]["size"]["width"]),
                   conf["crop"]["left_top"]["y"]: (conf["crop"]["left_top"]["y"] + conf["crop"]["size"]["height"]),
                   :]
     else:
-        print("Data crop: " + colored("NO", "red"))
+        print("Data crop: " + colored("NO", "red"), Verbose.debug)
 
     return dataset
 
@@ -46,39 +46,40 @@ def igre_test(conf, shift, output):
     config = utils.config
     utils.shift_multi = config["train"]["shift_learning_multi"]
     try:  # abusing not having verbose in config = disabled
-        utils.verbose = utils.config["verbose"]
+        utils.Verbose.level = utils.config["verbose"]
     except:
-        utils.verbose = 0
+        utils.Verbose.level = 0
 
     check_config(config)
 
-    v_print("\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
-          " expected shift: " + colored(shift, "green") + "\n")
+    Verbose.print("\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
+                  " expected shift: " + colored(shift, "green") + "\n")
 
     dataset = np.float64(scipy.io.loadmat(config["matfile"])['data'])
-    v_print("Data stats (before normalization): min = " + str(np.min(dataset)) + " max = " + str(np.max(dataset)))
+    Verbose.print("Data stats (before normalization): min = " + str(np.min(dataset)) +
+                  " max = " + str(np.max(dataset)), Verbose.debug)
     # data normalization - ranged
     dataset = (dataset - np.min(dataset)) / (np.max(dataset) - np.min(dataset))
 
-    v_print("Dataset shape: " + str(dataset.shape))
+    Verbose.print("Dataset shape: " + str(dataset.shape), Verbose.debug)
     dataset = data_crop(config, dataset)
 
-    v_print(colored("Input", "green") + " dimensions: " + colored(("[" +
+    Verbose.print(colored("Input", "green") + " dimensions: " + colored(("[" +
                                                                  str(config["input_dimensions"]["min"]) + "-" +
                                                                  str(config["input_dimensions"]["max"]) + "]"),
-                                                                "green"))
+                                                                "green"), Verbose.debug)
     visible = dataset[:, :, config["input_dimensions"]["min"]: config["input_dimensions"]["max"] + 1]
-    v_imshow(visible[:, :, 0])
+    Verbose.imshow(visible[:, :, 0])
 
     x = visible.shape[:-1]
     indexes = np.indices(x)
     indexes = indexes.reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
 
-    v_print("\tInputs shape: " + str(visible.shape))
-    v_print(colored("Output", "green") + " dimensions: " + colored(("[" +
+    Verbose.print("\tInputs shape: " + str(visible.shape), Verbose.debug)
+    Verbose.print(colored("Output", "green") + " dimensions: " + colored(("[" +
                                                                   str(config["output_dimensions"]["min"]) + "-" +
                                                                   str(config["output_dimensions"]["max"]) + "]"),
-                                                                 "green"))
+                                                                 "green"), Verbose.debug)
     outputs = dataset[:, :, config["output_dimensions"]["min"]: config["output_dimensions"]["max"] + 1]
 
     # Adding gaussian blur to data
@@ -89,12 +90,12 @@ def igre_test(conf, shift, output):
     #    plt.show()
     #    outputs = np.append(outputs, blurred, axis=2)
 
-    v_print("\tOutput shape: " + str(outputs.shape))
+    Verbose.print("\tOutput shape: " + str(outputs.shape), Verbose.debug)
 
-    v_print("\nCalling " + colored("IGRE\n", "green") + "...")
+    Verbose.print("\nCalling " + colored("IGRE\n", "green") + "...")
 
     # coordinate transform up to perspective transform
-    T = Transformation(  c=shift)  # a=(1.1, -0.1), b=(0.1, 0.9),
+    T = Transformation(c=shift)  # a=(1.1, -0.1), b=(0.1, 0.9),
     inputs = T.transform(indexes)
     bias, bias_history = igre.run(inputs,
                                   outputs,
@@ -116,10 +117,6 @@ def igre_test(conf, shift, output):
                 "y": [float(hist[0][1]) for hist in bias_history]
             }
             ofile.write(yaml.dump(config))
-
-
-def transformation(coordinates, shift):
-    return coordinates+shift
 
 
 if __name__ == "__main__":

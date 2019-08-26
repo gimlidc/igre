@@ -1,5 +1,5 @@
 matfile: 'C:/Pycharm_projects/igre/input/vlasic.mat'
-verbose: 0
+verbose_level: 1
 crop:
   left_top:
     x: 0
@@ -16,6 +16,7 @@ output_dimensions:
   min: 27
   max: 27
 expected_max_shift_px: 20
+expected_max_scale: 1.1
 blur_sizes:
   - 51
   - 21

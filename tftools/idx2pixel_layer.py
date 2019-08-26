@@ -1,15 +1,13 @@
 import tensorflow as tf
 from utils import shift_multi
 
+
 def custom_initializer(shape_list, dtype):
     # return [a,b], a = [1,0], b = [0,1] "identity" linear transform
     return tf.constant([shift_multi, 0, 0, shift_multi], dtype=tf.float32)
 
 
 global_visible = None
-
-# for debug
-# sess = tf.compat.v1.InteractiveSession()
 
 
 class Idx2PixelLayer(tf.keras.layers.Layer):
@@ -166,10 +164,6 @@ def linear_interpolation(coords):
     # calculate index of top-left point
     idx_low = tf.floor(coords)
 
-    # idx_low at most second-to-last element
-    # TODO: here probably we want to extrapolate last/first column/row to infinity (if there is necessity)
-    idx_low = tf.minimum(idx_low, tf.subtract(tf.cast(visible.shape[:-1], dtype=tf.float32), 6))
-
     # offset of input coordinates from top-left point
     delta = tf.cast(tf.subtract(coords, idx_low), dtype=tf.float32)
     # coords are the size of (batch, 2), delta as well
@@ -194,7 +188,7 @@ def linear_interpolation(coords):
     interpolation = tf.add(mid_bottom, tf.einsum("i,ij->ij", delta[:, 1],
                                                  tf.subtract(mid_top, mid_bottom)))
 
-    def hide_this():
+    def compute_2x2_jacobian():
         # This will produce Jacobian of size [batch_size, 2, input_dims]
         # Take bigger neighbourhood around the coord
         ttl = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [0, -1]), tf.int32))
@@ -225,7 +219,7 @@ def linear_interpolation(coords):
         d_y = tf.multiply(tf.add(d_y, d_y_c), 0.5)
         return d_x, d_y
 
-    d_c_x, d_c_y = hide_this()
+    d_c_x, d_c_y = compute_2x2_jacobian()
     # d_a_x = tf.einsum("ij,i->ij", d_c_x, coords[:,0])
     # d_a_y = tf.einsum("ij,i->ij", d_c_y, coords[:,0])
     # d_b_x = tf.einsum("ij,i->ij", d_c_x, coords[:,1])
