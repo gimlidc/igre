@@ -38,16 +38,10 @@ def __train_networks(inputs,
     :return:
         trained model and training history
     """
-    print('Selecting', train_set_size, 'samples randomly for use by algorithm.')
+    Verbose.print('Selecting ' + str(train_set_size) + ' samples randomly for use by algorithm.')
 
-    # FUTURE: wavelet decomposition
-    # TODO: maybe we want to blur even the "visible" image
-    outputs = ann_imput_processing.blur_preprocessing(outputs, reg_layer_data.shape)
-
-    # TODO: pre filter with max expected shift
     selection = ann_imput_processing.training_batch_selection(train_set_size, reg_layer_data.shape)
     indexes = inputs[selection, :]
-    outputs = outputs[selection, :]
 
     # define model
     print('Adding input layer, width =', indexes.shape[1])
@@ -77,15 +71,20 @@ def __train_networks(inputs,
 
     start_time = time()
     # TODO: better names for stages
-    epochs_per_stage = utils.config["epochs_per_blur"]
-    epochs_per_stage.append(epochs)
+    stages = utils.config["stages"]
+    stages.append({'type': 'last', 'epochs': epochs})
 
-    for stage in range(len(epochs_per_stage)):
+    for stage in (stages):
+        if stage['type'] == 'blur':
+            output = ann_imput_processing.blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
+        else:
+            output = outputs
+        output = output[selection, :]
         shift_metric = ShiftMetrics()
         callbacks = [shift_metric]
         history = model.fit(indexes,
-                            outputs[:, stage],
-                            epochs=epochs_per_stage[stage],
+                            output,
+                            epochs=stage['epochs'],
                             validation_split=0.2,
                             verbose=1,
                             callbacks=callbacks,
@@ -111,8 +110,8 @@ def __train_networks(inputs,
     print("Total time {:.4f}'s".format(elapsed_time))
 
     # calculate gain and save best model so far
-    gain = abs(outputs - model.predict(indexes, batch_size=batch_size)) / (outputs.shape[0] *
-                                                                           outputs.shape[1])
+    gain = abs(outputs[selection, :] - model.predict(indexes, batch_size=batch_size)) / (outputs.shape[0] *
+                                                                                         outputs.shape[1])
     information_gain_max = gain.flatten().max()
     print('Gain: {:1.4e}'.format(information_gain_max))
 

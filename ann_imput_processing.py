@@ -3,20 +3,17 @@ import cv2
 import numpy as np
 
 
-def blur_preprocessing(image, img_size):
-    outputs = np.ones(image.shape)
+# TODO: wavelet decomposition
+# TODO: maybe we want to blur even the "visible" image
+def blur_preprocessing(image, img_size, blur_size):
+
     img = image.reshape(img_size[0], img_size[1], -1)
 
-    blurs = utils.config["blur_sizes"]
+    blurred = cv2.GaussianBlur(img[:, :, 0], (blur_size, blur_size), 0)
+    blurred = blurred.reshape(blurred.shape[0], blurred.shape[1], 1)
+    blurred = blurred.reshape(blurred.shape[0] * blurred.shape[1], -1)
 
-    for b_size in blurs:
-        blurred = cv2.GaussianBlur(img[:, :, 0], (b_size, b_size), 0)
-        blurred = blurred.reshape(blurred.shape[0], blurred.shape[1], 1)
-        blurred = blurred.reshape(blurred.shape[0] * blurred.shape[1], -1)
-        outputs = np.append(outputs, blurred, axis=1)
-
-    outputs = np.append(outputs, image, axis=1)
-    return outputs[:, 1:]
+    return blurred
 
 
 def training_batch_selection(train_set_size, input_dims):
@@ -28,14 +25,13 @@ def training_batch_selection(train_set_size, input_dims):
     :param input_dims: image dimensions
     :return: indices to randomly selected pixels within "safety zone"
     """
-    tmp = np.arange(input_dims[0]*input_dims[1])
-    tmp = tmp.reshape(input_dims[:-1])
-    expected_max_distortion = int(np.floor(utils.config["expected_max_shift_px"] *
-                                           utils.config["expected_max_scale"]))
-    tmp = tmp[expected_max_distortion:-expected_max_distortion,
-              expected_max_distortion:-expected_max_distortion]
-    tmp = tmp.reshape(-1)
-    selection = np.random.permutation(tmp)
+    all_data_indices = np.arange(input_dims[0]*input_dims[1])
+    all_data_indices = all_data_indices.reshape(input_dims[:-1])
+    max_misplacement = int(np.floor(utils.config["expected_max_px_misplacement"]))
+    selection = all_data_indices[max_misplacement:-max_misplacement,
+                                 max_misplacement:-max_misplacement]
+    selection = selection.reshape(-1)
+    selection = np.random.permutation(selection)
     selection = selection[:train_set_size]
 
     return selection

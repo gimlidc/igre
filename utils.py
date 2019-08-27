@@ -68,3 +68,18 @@ class Transformation:
         r += coordinates*self.b
         r += self.c
         return r
+
+
+def read_from_config(config, property_name, default_value = None):
+    """
+    Reads top level property from config, wrapped in try/except for safety
+    :param config: config to read form, allows to supply config subsection to get to lover levels properties
+    :param property_name: top level property name
+    :param default_value: default if property is not in config
+    :return: property value
+    """
+    try:
+        property_value = config[property_name]
+    except:
+        property_value = default_value
+    return property_value

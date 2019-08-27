@@ -45,10 +45,7 @@ def igre_test(conf, shift, output):
     utils.config = yaml.load(open(conf, 'r'), Loader=yaml.FullLoader)
     config = utils.config
     utils.shift_multi = config["train"]["shift_learning_multi"]
-    try:  # abusing not having verbose in config = disabled
-        utils.Verbose.level = utils.config["verbose"]
-    except:
-        utils.Verbose.level = 0
+    utils.verbose_level = read_from_config(config, "verbose_level", Verbose.normal)
 
     check_config(config)
 
