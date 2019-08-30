@@ -1,0 +1,39 @@
+iterations:
+  - type: INT_RANGE
+    name: X
+    from: 0
+    to: 2
+    step: 1
+    stepOperation: PLUS
+  - type: INT_RANGE
+    name: Y
+    from: 0
+    to: 2
+    step: 1
+    stepOperation: PLUS
+  - type: ARRAY
+    name: CONFIG_FILE
+    values:
+       - ./data/external/metacentrum/01-registration-experiment/config-0bands.yaml
+general:
+  metadataStoragePath: '${HOME}/.clusterize/metadataStorage'
+  storagePath: '${HOME}/igre/data/processed/01-registration-experiment'
+  sourcesPath: '${HOME}/igre'
+  maxResubmits: 3
+  variables:
+    ENV_VAR: 123
+taskType:
+  type: PYTHON
+  command: |-
+    source env.sh && pipenv run python -m src.models.igre-test -c ${CONFIG_FILE} -x ${X} -y ${Y} -o ../data/processed/01_registration_experiment/out_${X}-${Y}.yaml
+resources:
+  profile: 'CUSTOM'
+  resourceType: 'CPU'
+  details: # Optional
+    chunks: 1 # Optional
+    walltime: "01:00:00" # Optional
+    mem: "1gb" # Optional
+    ncpus: 1 # Optional
+    scratchLocal: "1gb" # Optional
+  modules:
+    - python-3.6.2-gcc
