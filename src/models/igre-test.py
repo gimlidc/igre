@@ -1,8 +1,9 @@
 import yaml
 from src.models import igre
-from tftools.optimizer_builder import build_optimizer
+from src.tftools.optimizer_builder import build_optimizer
 import utils
 from utils import *
+from src.registration.transformation import Transformation
 
 
 def check_config(conf):
@@ -92,8 +93,8 @@ def igre_test(conf, shift, output):
     Verbose.print("\nCalling " + colored("IGRE\n", "green") + "...")
 
     # coordinate transform up to perspective transform
-    T = Transformation(c=shift)  # a=(1.1, -0.1), b=(0.1, 0.9),
-    inputs = T.transform(indexes)
+    tform = Transformation(c=shift)  # a=(1.1, -0.1), b=(0.1, 0.9),
+    inputs = tform.transform(indexes)
     bias, bias_history = igre.run(inputs,
                                   outputs,
                                   visible=visible,

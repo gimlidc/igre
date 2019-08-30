@@ -1,11 +1,11 @@
 import sys
 import tensorflow as tf
 from time import time
-from tftools.idx2pixel_layer import Idx2PixelLayer
-from tftools.shift_metric import ShiftMetrics
+from src.tftools.idx2pixel_layer import Idx2PixelLayer
+from src.tftools.shift_metric import ShiftMetrics
 import utils
 from utils import *
-import ann_imput_processing
+from src.data.ann.input_preprocessor import training_batch_selection, blur_preprocessing
 
 
 def __train_networks(inputs,
@@ -40,7 +40,7 @@ def __train_networks(inputs,
     """
     Verbose.print('Selecting ' + str(train_set_size) + ' samples randomly for use by algorithm.')
 
-    selection = ann_imput_processing.training_batch_selection(train_set_size, reg_layer_data.shape)
+    selection = training_batch_selection(train_set_size, reg_layer_data.shape)
     indexes = inputs[selection, :]
 
     # define model
@@ -76,7 +76,7 @@ def __train_networks(inputs,
 
     for stage in (stages):
         if stage['type'] == 'blur':
-            output = ann_imput_processing.blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
+            output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
         else:
             output = outputs
         output = output[selection, :]
