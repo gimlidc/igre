@@ -1,0 +1,52 @@
+# Path to .mat file containing dataset
+matfile: 'C:/Pycharm_projects/igre/input/vlasic.mat'
+# level of verbosity (print, plot, imshow)
+#     -1 = displays nothing but the most crucial things
+#      0 = setting for metacentrum
+#      1 = normal setting
+#      4 = debug, displays additional info
+verbose_level: 3
+# defines which part of image will be processed
+crop:
+  left_top:
+    x: 0
+    y: 0
+  size:
+    width: 401
+    height: 401
+# ???
+layers:
+  - 1
+# indices from, to defining which images from matfile will be used as input/output
+input_dimensions:
+  min: 27
+  max: 27 # maximum is included into selection
+output_dimensions:
+  min: 27
+  max: 27
+# expected maximal displacement of a pixel (shift + rotation + scale + ... etc.)
+expected_max_px_misplacement: 25
+
+# stage settings
+# blur = gaussian blur support size to blur input image used for corresponding number of epochs
+stages:
+  - type: blur
+    params: 51
+    epochs: 75
+  - type: blur
+    params: 21
+    epochs: 75
+
+# training parameters
+# detecting transformation is form r = ax + by + c
+train:
+  batch_size: 2048
+  epochs: 150
+  use_gpu: false
+  # to achieve different learning rate for different weights - a and b require much smaller learning rate than c
+  shift_learning_multi: 350
+  optimizer:
+    family: "adam"
+    learning_rate: 0.35
+    beta1: 0.01
+    beta2: 0.85

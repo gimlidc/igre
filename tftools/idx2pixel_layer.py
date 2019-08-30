@@ -1,4 +1,11 @@
 import tensorflow as tf
+from utils import shift_multi
+
+
+def custom_initializer(shape_list, dtype):
+    # return [a,b], a = [1,0], b = [0,1] "identity" linear transform
+    return tf.constant([shift_multi, 0, 0, shift_multi], dtype=tf.float32)
+
 
 global_visible = None
 
@@ -10,16 +17,25 @@ class Idx2PixelLayer(tf.keras.layers.Layer):
         :param visible: one dimension of visible image (for this dimension [x,y] will be computed)
         """
         super(Idx2PixelLayer, self).__init__(**kwargs)
-        self.bias = self.add_weight(name='bias', shape=(2,), dtype=tf.float32,
-                                    initializer='zeros',
-                                    trainable=trainable)
+        self.shift = self.add_weight(name='shift', shape=(2,), dtype=tf.float32,
+                                     initializer='zeros',
+                                     trainable=trainable)
+        self.multi = self.add_weight(name='multi', shape=(4,), dtype=tf.float32,
+                                     initializer=custom_initializer,
+                                     trainable=True)
         self.visible = tf.constant(visible, dtype=tf.float32)
         global global_visible
         global_visible = self.visible
 
     def call(self, coords, **kwargs):
-        # idx = [x - bx, y - by], where x, y is expected in range [width, height]
-        idx = tf.subtract(tf.cast(coords, tf.float32), self.bias)
+        # idx = a.*x + b.*y + c where x, y is expected in range [width, height]
+        # its very difficult to get the originally used a, b and c so we are estimating
+        # the a, b and c of the reverse transform for now
+        idx = tf.cast(coords, tf.float32)
+        idx = tf.add(tf.multiply(idx, tf.divide(self.multi[0: 2], shift_multi)),
+                     tf.multiply(idx, tf.divide(self.multi[2:  ], shift_multi)))
+        idx = tf.add(idx, self.shift)
+        # idx = tf.subtract(tf.cast(coords, tf.float32), self.shift)
         return linear_interpolation(idx)
 
 
@@ -31,10 +47,10 @@ def bicubic_interpolation(coords):
     idx_low = tf.floor(coords)
     delta = tf.cast(tf.subtract(coords, idx_low), dtype=tf.float32)
 
-    f00 = tf.gather_nd(visible, tf.cast(idx_low, tf.int32))
-    f01 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [0, 1]), tf.int32))
-    f10 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 0]), tf.int32))
-    f11 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 1]), tf.int32))
+    f00 = tf.gather_nd(visible, tf.cast(idx_low, dtype=tf.int32))
+    f01 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [0, 1]), dtype=tf.int32))
+    f10 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 0]), dtype=tf.int32))
+    f11 = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 1]), dtype=tf.int32))
 
     fx00 = tf.subtract(tf.gather_nd(visible, tf.cast(tf.add(idx_low, [-1, 0]), tf.int32)),
                        tf.gather_nd(visible, tf.cast(tf.add(idx_low, [+1, 0]), tf.int32)))
@@ -134,13 +150,19 @@ def linear_interpolation(coords):
     grad_multiplier = tf.constant(1, dtype=tf.float32)
     visible = global_visible
 
-    # calculate index of top-left point
-    coords = tf.maximum(coords, tf.zeros(tf.shape(visible.shape[:-1]), dtype=tf.float32))
-    idx_low = tf.floor(coords)
+    # ensure that the coordinates are in range [1, max-2] so we can take 2x2 neighbourhood of the coord in the Jacobian
+    # TODO: We might do precheck outside this function
+    # 0 - 400
+    coords = tf.subtract(coords, 1)
+    # -1 - 399
+    coords = tf.mod(coords, tf.subtract(tf.cast(visible.shape.as_list()[:-1], dtype=tf.float32), 4))
+    # 0 - (401-4) 397
+    coords = tf.add(coords, 1)
+    # 1 - 398
+    # we can do coords -1 and +2 now
 
-    # idx_low at most second-to-last element
-    # TODO: here probably we want to extrapolate last/first column/row to infinity (if there is necessity)
-    idx_low = tf.minimum(idx_low, tf.subtract(tf.cast(visible.shape[:-1], dtype=tf.float32), 2))
+    # calculate index of top-left point
+    idx_low = tf.floor(coords)
 
     # offset of input coordinates from top-left point
     delta = tf.cast(tf.subtract(coords, idx_low), dtype=tf.float32)
@@ -152,10 +174,11 @@ def linear_interpolation(coords):
     bottom_right = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 1]), tf.int32))
     # these values are of size of [batch_size, input_dimensions]
 
+    # NOTE: why r + d(l-r) and not vice versa:
+    # IF we do that and then flip x and y axis (which we did) it cancels out
     # calculate interpolations on the sides of the square
-    # tensor sizes: einsum = [batch, 1] * [batch, input_dims] -> [batch, input_dims]
+    # tensor sizes: einsum = [batch, 1] * [batch, input_dims] -> [batch, input_dims] (input_dims = 1)
     mid_bottom = tf.add(bottom_right, tf.einsum("i,ij->ij", delta[:, 0], tf.subtract(bottom_left, bottom_right)))
-    # tensor sizes: einsum = [batch, 1] * [batch, input_dims] -> [batch, input_dims]
     mid_top = tf.add(top_right, tf.einsum("i,ij->ij", delta[:, 0], tf.subtract(top_left, top_right)))
 
     # NOTE: reason for mid left/right?
@@ -165,12 +188,107 @@ def linear_interpolation(coords):
     interpolation = tf.add(mid_bottom, tf.einsum("i,ij->ij", delta[:, 1],
                                                  tf.subtract(mid_top, mid_bottom)))
 
-    # This will produce Jacobian of size [batch_size, 2, input_dims]
-    jacob = tf.stack([tf.subtract(mid_right, mid_left), tf.subtract(mid_bottom, mid_top)],
-                     axis=1)
+    def compute_2x2_jacobian():
+        # This will produce Jacobian of size [batch_size, 2, input_dims]
+        # Take bigger neighbourhood around the coord
+        ttl = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [0, -1]), tf.int32))
+        ttr = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, -1]), tf.int32))
+        bbl = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [0, 2]), tf.int32))
+        bbr = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [1, 2]), tf.int32))
+        tll = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [-1, 0]), tf.int32))
+        trr = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [2, 0]), tf.int32))
+        bll = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [-1, 1]), tf.int32))
+        brr = tf.gather_nd(visible, tf.cast(tf.add(idx_low, [2, 1]), tf.int32))
+
+        mid_bb = tf.add(bbr, tf.einsum("i,ij->ij", delta[:, 0], tf.subtract(bbl, bbr)))
+        mid_tt = tf.add(ttr, tf.einsum("i,ij->ij", delta[:, 0], tf.subtract(ttl, ttr)))
+        mid_ll = tf.add(bll, tf.einsum("i,ij->ij", delta[:, 1], tf.subtract(tll, bll)))
+        mid_rr = tf.add(brr, tf.einsum("i,ij->ij", delta[:, 1], tf.subtract(trr, brr)))
+
+        d_x_r = tf.subtract(mid_rr, mid_right)
+        d_x_c = tf.subtract(mid_right, mid_left)
+        d_x_l = tf.subtract(mid_left, mid_ll)
+        d_y_t = tf.subtract(mid_top, mid_tt)
+        d_y_c = tf.subtract(mid_bottom, mid_top)
+        d_y_b = tf.subtract(mid_bb, mid_bottom)
+
+        # Weighted average of the derivatives
+        d_x = tf.multiply(tf.add(d_x_r, d_x_l), 0.5)
+        d_x = tf.multiply(tf.add(d_x, d_x_c), 0.5)
+        d_y = tf.multiply(tf.add(d_y_t, d_y_b), 0.5)
+        d_y = tf.multiply(tf.add(d_y, d_y_c), 0.5)
+        return d_x, d_y
+
+    d_c_x, d_c_y = compute_2x2_jacobian()
+    # d_a_x = tf.einsum("ij,i->ij", d_c_x, coords[:,0])
+    # d_a_y = tf.einsum("ij,i->ij", d_c_y, coords[:,0])
+    # d_b_x = tf.einsum("ij,i->ij", d_c_x, coords[:,1])
+    # d_b_y = tf.einsum("ij,i->ij", d_c_y, coords[:,1])
+    jacob = tf.stack([d_c_x, d_c_y], axis=1)
+
+    # jacob = get_jacobian(visible, idx_low, delta)
 
     def grad(dy):
-        """ This method should return tensor of gradients [batch_size, 2]"""
+        """ This method should return tensor of gradients [batch_size, 6]"""
         return tf.multiply(tf.einsum("ijk,ik->ij", jacob, dy), grad_multiplier)
 
     return interpolation, grad
+
+
+def get_jacobian(image, index, delta):
+    """
+    Computes Jacobian over 4 x 4 neighbourhood.
+    Requires index >=1 and <= image.size - 2 -- ensured up in the modulo shenanigans.
+    Simple difference between two neighbouring pixels in purely x or y axis.
+
+    :param image: image... "duh"
+    :param index: closest top left pixel to the point in which we are computing Jacobian
+    :param delta: offset of point from index
+    :return: Jacobian... "duh"
+    """
+
+    # TODO: complete rework
+    # not possible the elegant way because of !@#$ tf mechanics
+
+    # neighbourhood_indices = tf.constant(np.array([[[-1, -1], [-1, 0], [-1, 1], [-1, 2]],
+    #                                   [[ 0, -1], [ 0, 0], [ 0, 1], [ 0, 2]],
+    #                                   [[ 1, -1], [ 1, 0], [ 1, 1], [ 1, 2]],
+    #                                   [[ 2, -1], [ 2, 0], [ 2, 1], [ 2, 2]]]), dtype=tf.float32)
+    #
+    # # repeating the neigh. indices to have same length as index (=batch_size)
+    # ni = tf.reshape(tf.tile(neighbourhood_indices, [2048, 1, 1]), (2048, 4, 4, 2))
+    # print(ni.shape)
+    # print(index.shape)
+    # print(tf.add(index, ni).shape)
+    # # nbh size is [batch_size, 4, 4, 1]
+    # nbh = tf.gather_nd(image, tf.cast(tf.add(index, ni), tf.int32))
+    # mid_bottom = tf.add(nbh[:, 2, 2], tf.einsum("i,ij->ij", delta[:, 0], tf.subtract(nbh[:, 1, 2], nbh[:, 2, 2])))
+    # mid_top = tf.add(nbh[:, 2, 1], tf.einsum("i,ij->ij", delta[:, 0], tf.subtract(nbh[:, 1, 1], nbh[:, 2, 1])))
+    # mid_left = tf.add(nbh[:, 1, 2], tf.einsum("i,ij->ij", delta[:, 1], tf.subtract(nbh[:, 1, 1], nbh[:, 1, 2])))
+    # mid_right = tf.add(nbh[:, 2, 2], tf.einsum("i,ij->ij", delta[:, 1], tf.subtract(nbh[:, 2, 1], nbh[:, 2, 2])))
+    #
+    # mid_bottom_2 = tf.add(nbh[:, 2, 3], tf.einsum("i,ij->ij", delta[:, 0], tf.subtract(nbh[:, 1, 3], nbh[:, 2, 3])))
+    # mid_top_2 = tf.add(nbh[:, 2, 0], tf.einsum("i,ij->ij", delta[:, 0], tf.subtract(nbh[:, 1, 0], nbh[:, 2, 0])))
+    # mid_left_2 = tf.add(nbh[:, 0, 2], tf.einsum("i,ij->ij", delta[:, 1], tf.subtract(nbh[:, 0, 1], nbh[:, 0, 2])))
+    # mid_right_2 = tf.add(nbh[:, 3, 2], tf.einsum("i,ij->ij", delta[:, 1], tf.subtract(nbh[:, 3, 1], nbh[:, 3, 2])))
+    #
+    # dx_right = tf.subtract(mid_right_2, mid_right)
+    # dx_center = tf.subtract(mid_right, mid_left)
+    # dx_left = tf.subtract(mid_left, mid_left_2)
+    # dy_top = tf.subtract(mid_top, mid_top_2)
+    # dy_center = tf.subtract(mid_bottom, mid_top)
+    # dy_bottom = tf.subtract(mid_bottom_2, mid_bottom)
+    #
+    # # Weighted average of the derivatives
+    # dx = tf.multiply(tf.add(dx_right, dx_left), 0.5)
+    # dx = tf.multiply(tf.add(dx, dx_center), 0.5)
+    # dy = tf.multiply(tf.add(dy_top, dy_bottom), 0.5)
+    # dy = tf.multiply(tf.add(dy, dy_center), 0.5)
+    #
+    # jacobian = tf.stack([dx, dy], axis=1)
+
+    # return jacobian
+
+
+def linear_interpolation_1D(x1, x2, delta):
+    return

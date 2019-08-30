@@ -1,11 +1,11 @@
 import sys
-import numpy as np
 import tensorflow as tf
 from time import time
-from termcolor import colored
 from tftools.idx2pixel_layer import Idx2PixelLayer
 from tftools.shift_metric import ShiftMetrics
-import matplotlib.pyplot as plt
+import utils
+from utils import *
+import ann_imput_processing
 
 
 def __train_networks(inputs,
@@ -38,10 +38,10 @@ def __train_networks(inputs,
     :return:
         trained model and training history
     """
-    print('Selecting', train_set_size, 'samples randomly for use by algorithm.')
-    perm = np.random.permutation(inputs.shape[0])
-    indexes = inputs[perm[:train_set_size], :]
-    outputs = outputs[perm[:train_set_size], :]
+    Verbose.print('Selecting ' + str(train_set_size) + ' samples randomly for use by algorithm.')
+
+    selection = ann_imput_processing.training_batch_selection(train_set_size, reg_layer_data.shape)
+    indexes = inputs[selection, :]
 
     # define model
     print('Adding input layer, width =', indexes.shape[1])
@@ -68,20 +68,40 @@ def __train_networks(inputs,
     print("Compiling model took {:.4f}'s.".format(elapsed_time))
 
     # train model
-    start_time = time()
-    shift_metric = ShiftMetrics()
-    callbacks = [shift_metric]
-    history = model.fit(indexes,
-                        outputs,
-                        epochs=epochs,
-                        validation_split=0.2,
-                        verbose=1,
-                        callbacks=callbacks,
-                        batch_size=batch_size
-                        )
 
-    plt.plot(np.array(shift_metric.bias_history)[:, 0])
-    plt.show()
+    start_time = time()
+    # TODO: better names for stages
+    stages = utils.config["stages"]
+    stages.append({'type': 'last', 'epochs': epochs})
+
+    for stage in (stages):
+        if stage['type'] == 'blur':
+            output = ann_imput_processing.blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
+        else:
+            output = outputs
+        output = output[selection, :]
+        shift_metric = ShiftMetrics()
+        callbacks = [shift_metric]
+        history = model.fit(indexes,
+                            output,
+                            epochs=stage['epochs'],
+                            validation_split=0.2,
+                            verbose=1,
+                            callbacks=callbacks,
+                            batch_size=batch_size
+                            )
+
+        bias_history = [x[0] for x in shift_metric.bias_history]  # extract the shift
+        bias_history = np.array(bias_history)
+        Verbose.plot(bias_history)  # plot the shift (c coeff)
+
+        bias_history = [x[1][0:2] for x in shift_metric.bias_history]  # extract the a
+        bias_history = np.array(bias_history) / utils.shift_multi
+        Verbose.plot(bias_history)  # plot the  (a coeff)
+
+        bias_history = [x[1][2:] for x in shift_metric.bias_history]  # extract the b
+        bias_history = np.array(bias_history) / utils.shift_multi
+        Verbose.plot(bias_history)  # plot the  (b coeff)
 
     elapsed_time = time() - start_time
     num_epochs = len(history.history['loss'])
@@ -90,8 +110,8 @@ def __train_networks(inputs,
     print("Total time {:.4f}'s".format(elapsed_time))
 
     # calculate gain and save best model so far
-    gain = abs(outputs - model.predict(indexes, batch_size=batch_size)) / (outputs.shape[0] *
-                                                                           outputs.shape[1])
+    gain = abs(outputs[selection, :] - model.predict(indexes, batch_size=batch_size)) / (outputs.shape[0] *
+                                                                                         outputs.shape[1])
     information_gain_max = gain.flatten().max()
     print('Gain: {:1.4e}'.format(information_gain_max))
 
@@ -133,7 +153,7 @@ def __information_gain(coords,
 
     # show output of the first two layers
     extrapolation = model.predict(coords, batch_size=batch_size)
-    extrapolation = extrapolation.reshape(target.shape)
+    extrapolation = extrapolation.reshape(target.shape[0], target.shape[1], 1)
 
     ig = target - extrapolation
 
@@ -160,5 +180,8 @@ def run(inputs,
 
     layer_dict = dict([(layer.name, layer) for layer in model.layers])
     bias = layer_dict['Idx2PixelLayer'].get_weights()
-    print("Shift detected: " + colored(str(bias[0]), "green"))
+    Verbose.print("linear coeffs (a): " + colored(str(bias[1][0:2]/utils.shift_multi), "green"), Verbose.always)
+    Verbose.print("linear coeffs (b): " + colored(str(bias[1][2:]/utils.shift_multi), "green"), Verbose.always)
+    Verbose.print("Shift detected (c): " + colored(str(bias[0]), "green"), Verbose.always)
     return bias, bias_history
+

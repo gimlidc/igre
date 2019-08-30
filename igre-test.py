@@ -1,82 +1,100 @@
 import yaml
-import scipy.io
-import numpy as np
 import igre
-from termcolor import colored
 from tftools.optimizer_builder import build_optimizer
-import matplotlib.pyplot as plt
+import utils
+from utils import *
 
-def check_config(config):
-    if "layers" in config:
-        print("Config integrity: " + colored("OK", "green"))
+
+def check_config(conf):
+    if "layers" in conf:
+        print("Config integrity: " + colored("OK", "green"), Verbose.always)
     else:
-        print("Config integrity: " + colored("FAILED", "red"))
+        print("Config integrity: " + colored("FAILED", "red"), Verbose.always)
         exit(1)
 
 
-def data_crop(config, dataset):
+def data_crop(conf, dataset):
     if "crop" in config:
-        print("Data crop ... " + colored("YES", "green") + ":")
+        print("Data crop ... " + colored("YES", "green") + ":", Verbose.debug)
         print("\t["
-              + str(config["crop"]["left_top"]["x"]) + ":"
-              + str(config["crop"]["left_top"]["x"] + config["crop"]["size"]["width"]) + ", "
-              + str(config["crop"]["left_top"]["y"]) + ":"
-              + str(config["crop"]["left_top"]["y"] + config["crop"]["size"]["height"]) + ", :]")
+              + str(conf["crop"]["left_top"]["x"]) + ":"
+              + str(conf["crop"]["left_top"]["x"] + conf["crop"]["size"]["width"]) + ", "
+              + str(conf["crop"]["left_top"]["y"]) + ":"
+              + str(conf["crop"]["left_top"]["y"] + conf["crop"]["size"]["height"]) + ", :]", Verbose.debug)
         dataset = dataset[
-                  config["crop"]["left_top"]["x"]: (config["crop"]["left_top"]["x"] + config["crop"]["size"]["width"]),
-                  config["crop"]["left_top"]["y"]: (config["crop"]["left_top"]["y"] + config["crop"]["size"]["height"]),
+                  conf["crop"]["left_top"]["x"]: (conf["crop"]["left_top"]["x"] + conf["crop"]["size"]["width"]),
+                  conf["crop"]["left_top"]["y"]: (conf["crop"]["left_top"]["y"] + conf["crop"]["size"]["height"]),
                   :]
     else:
-        print("Data crop: " + colored("NO", "red"))
+        print("Data crop: " + colored("NO", "red"), Verbose.debug)
 
     return dataset
 
 
-def igre_test(config, shift, output):
+def igre_test(conf, shift, output):
     """
     Information gain and registration test works with registered inputs. For testing registration layer, input pixels
     are shifted by shift[0] in x axis and by shift[1] in y axis.
-    :param config: configuration of IGRE run
+    :param conf: configuration of IGRE run
     :param shift: tuple containing shift in x and in y axis of input dimensions
     :param output: output file for measured data
     :return: registration layer weights (i.e. computed shift)
     """
 
     # Config load and integrity check
-    config = yaml.load(open(config, 'r'), Loader=yaml.FullLoader)
+    utils.config = yaml.load(open(conf, 'r'), Loader=yaml.FullLoader)
+    config = utils.config
+    utils.shift_multi = config["train"]["shift_learning_multi"]
+    utils.verbose_level = read_from_config(config, "verbose_level", Verbose.normal)
+
     check_config(config)
 
-    print("\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
-          " expected shift: " + colored(shift, "green") + "\n")
+    Verbose.print("\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
+                  " expected shift: " + colored(shift, "green") + "\n")
 
     dataset = np.float64(scipy.io.loadmat(config["matfile"])['data'])
-    print("Data stats (before normalization): min = " + str(np.min(dataset)) + " max = " + str(np.max(dataset)))
+    Verbose.print("Data stats (before normalization): min = " + str(np.min(dataset)) +
+                  " max = " + str(np.max(dataset)), Verbose.debug)
     # data normalization - ranged
     dataset = (dataset - np.min(dataset)) / (np.max(dataset) - np.min(dataset))
 
-    print("Dataset shape: " + str(dataset.shape))
+    Verbose.print("Dataset shape: " + str(dataset.shape), Verbose.debug)
     dataset = data_crop(config, dataset)
 
-    print(colored("Input", "green") + " dimensions: " + colored(("[" +
+    Verbose.print(colored("Input", "green") + " dimensions: " + colored(("[" +
                                                                  str(config["input_dimensions"]["min"]) + "-" +
                                                                  str(config["input_dimensions"]["max"]) + "]"),
-                                                                "green"))
+                                                                "green"), Verbose.debug)
     visible = dataset[:, :, config["input_dimensions"]["min"]: config["input_dimensions"]["max"] + 1]
-    plt.imshow(visible[:,:,0], cmap='gray')
-    plt.show()
-    indexes = np.indices(visible.shape[:-1]).reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
+    Verbose.imshow(visible[:, :, 0])
 
-    print("\tInputs shape: " + str(visible.shape))
-    print(colored("Output", "green") + " dimensions: " + colored(("[" +
+    x = visible.shape[:-1]
+    indexes = np.indices(x)
+    indexes = indexes.reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
+
+    Verbose.print("\tInputs shape: " + str(visible.shape), Verbose.debug)
+    Verbose.print(colored("Output", "green") + " dimensions: " + colored(("[" +
                                                                   str(config["output_dimensions"]["min"]) + "-" +
                                                                   str(config["output_dimensions"]["max"]) + "]"),
-                                                                 "green"))
+                                                                 "green"), Verbose.debug)
     outputs = dataset[:, :, config["output_dimensions"]["min"]: config["output_dimensions"]["max"] + 1]
-    print("\tOutput shape: " + str(outputs.shape))
 
-    print("\nCalling " + colored("IGRE\n", "green") + "...")
+    # Adding gaussian blur to data
+    # for b_size in [21, 51]:  # , 21, 31, 41, 51]:
+    #    blurred = cv2.GaussianBlur(outputs[:, :, 0], (b_size, b_size), 0)
+    #    blurred = blurred.reshape(blurred.shape[0], blurred.shape[1], 1)
+    #    plt.imshow(blurred[:, :, 0], cmap='gray')
+    #    plt.show()
+    #    outputs = np.append(outputs, blurred, axis=2)
 
-    bias, bias_history = igre.run(indexes + shift,
+    Verbose.print("\tOutput shape: " + str(outputs.shape), Verbose.debug)
+
+    Verbose.print("\nCalling " + colored("IGRE\n", "green") + "...")
+
+    # coordinate transform up to perspective transform
+    T = Transformation(c=shift)  # a=(1.1, -0.1), b=(0.1, 0.9),
+    inputs = T.transform(indexes)
+    bias, bias_history = igre.run(inputs,
                                   outputs,
                                   visible=visible,
                                   optimizer=build_optimizer(config["train"]["optimizer"]),
