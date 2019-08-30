@@ -16,9 +16,9 @@ iterations:
     values:
        - ./data/external/metacentrum/01-registration-experiment/config-0bands.yaml
 general:
-  metadataStoragePath: '${HOME}/.clusterize/metadataStorage'
-  storagePath: '${HOME}/igre/data/processed/01-registration-experiment'
-  sourcesPath: '${HOME}/igre'
+  metadataStoragePath: '../.clusterize/metadataStorage'
+  storagePath: './data/processed/01-registration-experiment'
+  sourcesPath: '.'
   maxResubmits: 3
   variables:
     ENV_VAR: 123
