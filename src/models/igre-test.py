@@ -1,30 +1,27 @@
 import yaml
 from src.models import igre
-from src.tftools.optimizer_builder import build_optimizer
-import utils
-from utils import *
+from termcolor import colored
+from src.logging.verbose import Verbose
+import os
+import numpy as np
+import scipy.io
+from src.config.tools import init_config
 from src.registration.transformation import Transformation
 
-
-def check_config(conf):
-    if "layers" in conf:
-        print("Config integrity: " + colored("OK", "green"), Verbose.always)
-    else:
-        print("Config integrity: " + colored("FAILED", "red"), Verbose.always)
-        exit(1)
+ROOT_DIR = os.path.abspath(os.curdir)
 
 
-def data_crop(conf, dataset):
+def data_crop(config, dataset):
     if "crop" in config:
         print("Data crop ... " + colored("YES", "green") + ":", Verbose.debug)
         print("\t["
-              + str(conf["crop"]["left_top"]["x"]) + ":"
-              + str(conf["crop"]["left_top"]["x"] + conf["crop"]["size"]["width"]) + ", "
-              + str(conf["crop"]["left_top"]["y"]) + ":"
-              + str(conf["crop"]["left_top"]["y"] + conf["crop"]["size"]["height"]) + ", :]", Verbose.debug)
+              + str(config["crop"]["left_top"]["x"]) + ":"
+              + str(config["crop"]["left_top"]["x"] + config["crop"]["size"]["width"]) + ", "
+              + str(config["crop"]["left_top"]["y"]) + ":"
+              + str(config["crop"]["left_top"]["y"] + config["crop"]["size"]["height"]) + ", :]", Verbose.debug)
         dataset = dataset[
-                  conf["crop"]["left_top"]["x"]: (conf["crop"]["left_top"]["x"] + conf["crop"]["size"]["width"]),
-                  conf["crop"]["left_top"]["y"]: (conf["crop"]["left_top"]["y"] + conf["crop"]["size"]["height"]),
+                  config["crop"]["left_top"]["x"]: (config["crop"]["left_top"]["x"] + config["crop"]["size"]["width"]),
+                  config["crop"]["left_top"]["y"]: (config["crop"]["left_top"]["y"] + config["crop"]["size"]["height"]),
                   :]
     else:
         print("Data crop: " + colored("NO", "red"), Verbose.debug)
@@ -43,17 +40,19 @@ def igre_test(conf, shift, output):
     """
 
     # Config load and integrity check
-    utils.config = yaml.load(open(conf, 'r'), Loader=yaml.FullLoader)
-    config = utils.config
-    utils.shift_multi = config["train"]["shift_learning_multi"]
-    utils.verbose_level = read_from_config(config, "verbose_level", Verbose.normal)
+    config = yaml.load(open(conf, 'r'), Loader=yaml.FullLoader)
 
-    check_config(config)
+    init_config(config)
 
-    Verbose.print("\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
-                  " expected shift: " + colored(shift, "green") + "\n")
+    Verbose.print(
+        "\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
+        " expected shift: " + colored(shift, "green") + "\n")
 
-    dataset = np.float64(scipy.io.loadmat(config["matfile"])['data'])
+    if "matfile" in config:
+        dataset = np.float64(scipy.io.loadmat(os.path.join(ROOT_DIR, "data", "raw", config["matfile"]))['data'])
+    else:
+        with open(config["numpyfile"]["data"]) as infile:
+            dataset = np.load(infile)
     Verbose.print("Data stats (before normalization): min = " + str(np.min(dataset)) +
                   " max = " + str(np.max(dataset)), Verbose.debug)
     # data normalization - ranged
@@ -62,10 +61,11 @@ def igre_test(conf, shift, output):
     Verbose.print("Dataset shape: " + str(dataset.shape), Verbose.debug)
     dataset = data_crop(config, dataset)
 
-    Verbose.print(colored("Input", "green") + " dimensions: " + colored(("[" +
-                                                                 str(config["input_dimensions"]["min"]) + "-" +
-                                                                 str(config["input_dimensions"]["max"]) + "]"),
-                                                                "green"), Verbose.debug)
+    Verbose.print(colored("Input", "green") + " dimensions: " +
+                  colored(("[" +
+                           str(config["input_dimensions"]["min"]) + "-" +
+                           str(config["input_dimensions"]["max"]) + "]"),
+                          "green"), Verbose.debug)
     visible = dataset[:, :, config["input_dimensions"]["min"]: config["input_dimensions"]["max"] + 1]
     Verbose.imshow(visible[:, :, 0])
 
@@ -74,19 +74,14 @@ def igre_test(conf, shift, output):
     indexes = indexes.reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
 
     Verbose.print("\tInputs shape: " + str(visible.shape), Verbose.debug)
-    Verbose.print(colored("Output", "green") + " dimensions: " + colored(("[" +
-                                                                  str(config["output_dimensions"]["min"]) + "-" +
-                                                                  str(config["output_dimensions"]["max"]) + "]"),
-                                                                 "green"), Verbose.debug)
+    Verbose.print(colored("Output", "green") + " dimensions: " +
+                  colored(("[" +
+                           str(config["output_dimensions"][
+                                   "min"]) + "-" +
+                           str(config["output_dimensions"][
+                                   "max"]) + "]"),
+                          "green"), Verbose.debug)
     outputs = dataset[:, :, config["output_dimensions"]["min"]: config["output_dimensions"]["max"] + 1]
-
-    # Adding gaussian blur to data
-    # for b_size in [21, 51]:  # , 21, 31, 41, 51]:
-    #    blurred = cv2.GaussianBlur(outputs[:, :, 0], (b_size, b_size), 0)
-    #    blurred = blurred.reshape(blurred.shape[0], blurred.shape[1], 1)
-    #    plt.imshow(blurred[:, :, 0], cmap='gray')
-    #    plt.show()
-    #    outputs = np.append(outputs, blurred, axis=2)
 
     Verbose.print("\tOutput shape: " + str(outputs.shape), Verbose.debug)
 
@@ -97,12 +92,7 @@ def igre_test(conf, shift, output):
     inputs = tform.transform(indexes)
     bias, bias_history = igre.run(inputs,
                                   outputs,
-                                  visible=visible,
-                                  optimizer=build_optimizer(config["train"]["optimizer"]),
-                                  layers=config["layers"],
-                                  batch_size=config["train"]["batch_size"],
-                                  epochs=config["train"]["epochs"]
-                                  )
+                                  visible=visible)
 
     if output is not None:
         with open(output, 'w') as ofile:

@@ -1,4 +1,4 @@
-matfile: '/Users/gimli/Qsync/MATLAB/vlasic-dataset.mat'
+matfile: 'vlasic-dataset.mat'
 crop:
   left_top:
     x: 0
@@ -21,6 +21,6 @@ train:
   use_gpu: false
   optimizer:
     family: "adam"
-    learning_rate: 0.35
-    beta1: 0.01
-    beta2: 0.85
+    learning_rate: 0.001
+    beta1: 0.9
+    beta2: 0.999

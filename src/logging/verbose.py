@@ -1,10 +1,4 @@
-import cv2
-import scipy.io
-import numpy as np
-from termcolor import colored
 import matplotlib.pyplot as plt
-
-# globals
 
 verbose_level = 1  # display flag, tied to Verbose "enum"
 #     always = -1       -  displays only things with always tag
@@ -43,18 +37,3 @@ class Verbose:
         if level <= verbose_level:
             plt.plot(a)
             plt.show()
-
-
-def read_from_config(config, property_name, default_value = None):
-    """
-    Reads top level property from config, wrapped in try/except for safety
-    :param config: config to read form, allows to supply config subsection to get to lover levels properties
-    :param property_name: top level property name
-    :param default_value: default if property is not in config
-    :return: property value
-    """
-    try:
-        property_value = config[property_name]
-    except:
-        property_value = default_value
-    return property_value
