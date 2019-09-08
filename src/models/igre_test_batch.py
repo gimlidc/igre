@@ -5,17 +5,19 @@ from copy import deepcopy
 import os
 
 
-OUT_FILENAME_FORMAT = "x{SHIFT_X}_y{SHIFT_Y}_modality_step{MODALITY_DIFF}_lr{LEARNING_RATE}.result"
+OUT_FILENAME_FORMAT = "x{SHIFT_X}_y{SHIFT_Y}_modality_step{MODALITY_DIFF}_lr{LEARNING_RATE}_{CUSTOM}.result"
 
 
-def __create_batch(config, shift):
+def __create_batch(config, shift, custom_string):
     """ In principle we expect valid configuration for igre in batch config. But there is possible batch
     configuration in "batch" property. Each variable requires special care, therefore there will be an if
     block in this method for each batch configuration.
     """
     template = deepcopy(config)
     del template["batch"]
-    template["output"] = OUT_FILENAME_FORMAT.replace("{SHIFT_X}", str(shift[0])).replace("{SHIFT_Y}", str(shift[1]))
+    template["output"] = OUT_FILENAME_FORMAT.replace("{SHIFT_X}", str(shift[0]))\
+                                            .replace("{SHIFT_Y}", str(shift[1])) \
+                                            .replace("{CUSTOM}", custom_string)
     batch = [template]
     for param in config["batch"]["params"]:
         if param == "output_dimension":
@@ -75,11 +77,18 @@ if __name__ == "__main__":
         default=0,
         help="y-Shift of the input data",
     )
+    parser.add_argument(
+        "-s",
+        "--custom_string",
+        type=str,
+        default="no",
+        help="String to customize output filenames (e.g. repetition number)",
+    )
     args = parser.parse_args()
     if not os.path.exists(args.batch_dir):
         os.makedirs(args.batch_dir)
     with open(args.config) as config_file:
         batch_config = yaml.load(config_file)
-    batch = __create_batch(batch_config, (args.x_shift, args.y_shift))
+    batch = __create_batch(batch_config, (args.x_shift, args.y_shift), args.custom_string)
     for run_conf in batch:
         igre_test(run_conf, (args.x_shift, args.y_shift), os.path.join(args.batch_dir, run_conf["output"]))
