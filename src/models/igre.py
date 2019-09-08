@@ -90,11 +90,11 @@ def __train_networks(inputs,
         reset_visible(output)
         output = output[selection, :]
         shift_metric = ShiftMetrics()
-        mcp_save = ModelCheckpoint(MODEL_FILE,
-                                   save_best_only=True, monitor='val_loss', mode='min')
-        lr_reduction = ReduceLROnPlateau(monitor='val_loss', factor=0.9, patience=100, verbose=0, mode='auto',
-                                         min_delta=0.0001, cooldown=0, min_lr=0)
-        callbacks = [shift_metric, mcp_save]# lr_reduction]
+        # mcp_save = ModelCheckpoint(MODEL_FILE,
+        #                            save_best_only=True, monitor='val_loss', mode='min')
+        # lr_reduction = ReduceLROnPlateau(monitor='val_loss', factor=0.9, patience=100, verbose=0, mode='auto',
+        #                                  min_delta=0.0001, cooldown=0, min_lr=0)
+        callbacks = [shift_metric] #mcp_save]# lr_reduction]
         history = model.fit(indexes,
                             output,
                             epochs=stage['epochs'],
