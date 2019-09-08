@@ -40,7 +40,7 @@ def igre_test(conf, shift, output):
     """
 
     # Config load and integrity check
-    config = yaml.load(open(conf, 'r'), Loader=yaml.FullLoader)
+    config = conf.copy()
 
     init_config(config)
 

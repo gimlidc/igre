@@ -1,5 +1,5 @@
 import tensorflow as tf
-from keras import backend as K
+from tensorflow.keras import backend as K
 
 
 def build_optimizer(config, batch_size):
@@ -17,8 +17,8 @@ def build_optimizer(config, batch_size):
     learning_rate = tf.train.exponential_decay(
       config["learning_rate"],                # Base learning rate.
       K.variable(1) * batch_size,      # Current index into the dataset.
-      2048,          # Decay step.
-      0.8,                # Decay rate.
+      5000,          # Decay step.
+      0.6,                # Decay rate.
       staircase=False)
     return tf.train.AdamOptimizer(learning_rate=learning_rate,
                                   beta1=config["beta1"],

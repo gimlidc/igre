@@ -3,12 +3,15 @@ import tensorflow as tf
 from time import time
 from src.tftools.idx2pixel_layer import Idx2PixelLayer, reset_visible
 from src.tftools.shift_metric import ShiftMetrics
+from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from src.logging.verbose import Verbose
 from src.tftools.optimizer_builder import build_optimizer
 from src.config.tools import get_config, get_or_default
 import numpy as np
 from termcolor import colored
 from src.data.ann.input_preprocessor import training_batch_selection, blur_preprocessing
+
+MODEL_FILE = "best_model.tmp.h5"
 
 
 def __train_networks(inputs,
@@ -87,7 +90,11 @@ def __train_networks(inputs,
         reset_visible(output)
         output = output[selection, :]
         shift_metric = ShiftMetrics()
-        callbacks = [shift_metric]
+        mcp_save = ModelCheckpoint(MODEL_FILE,
+                                   save_best_only=True, monitor='val_loss', mode='min')
+        lr_reduction = ReduceLROnPlateau(monitor='val_loss', factor=0.9, patience=100, verbose=0, mode='auto',
+                                         min_delta=0.0001, cooldown=0, min_lr=0)
+        callbacks = [shift_metric, mcp_save]# lr_reduction]
         history = model.fit(indexes,
                             output,
                             epochs=stage['epochs'],
@@ -157,6 +164,9 @@ def __information_gain(coords,
                                                     batch_size=batch_size,
                                                     stages=stages
                                                     )
+    print(model.get_weights())
+    model.load_weights(MODEL_FILE)
+    print(model.get_weights())
 
     # show output of the first two layers
     extrapolation = model.predict(coords, batch_size=batch_size)

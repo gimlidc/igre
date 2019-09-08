@@ -26,7 +26,7 @@ train:
       params: 51
       epochs: 20
     - type: polish
-      epochs: 15
+      epochs: 100
   use_gpu: false
   shift_learning_multi: 350 # to achieve different learning rate for shift and rotation
   optimizer:
