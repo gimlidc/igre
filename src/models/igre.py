@@ -164,9 +164,9 @@ def __information_gain(coords,
                                                     batch_size=batch_size,
                                                     stages=stages
                                                     )
-    print(model.get_weights())
-    model.load_weights(MODEL_FILE)
-    print(model.get_weights())
+    # print(model.get_weights())
+    # model.load_weights(MODEL_FILE)
+    # print(model.get_weights())
 
     # show output of the first two layers
     extrapolation = model.predict(coords, batch_size=batch_size)
