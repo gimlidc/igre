@@ -1,5 +1,5 @@
-matfile: 'C:/Pycharm_projects/igre/input/vlasic.mat'
-verbose_level: 3
+matfile: '/Users/gimli/Qsync/MATLAB/vlasic-dataset.mat'
+verbose_level: 1
 crop:
   left_top:
     x: 0
