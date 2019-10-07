@@ -1,11 +1,5 @@
 import tensorflow as tf
-from utils import shift_multi
-
-
-def custom_initializer(shape_list, dtype, partition_info):
-    # return [a,b], a = [1,0], b = [0,1] "identity" linear transform
-    return tf.constant([shift_multi, 0, 0, shift_multi], dtype=tf.float32)
-
+from utils import shift_multi, shift_multi_2
 
 global_visible = None
 
@@ -19,10 +13,13 @@ class Idx2PixelLayer(tf.keras.layers.Layer):
         super(Idx2PixelLayer, self).__init__(**kwargs)
         self.shift = self.add_weight(name='shift', shape=(2,), dtype=tf.float32,
                                      initializer='zeros',
-                                     trainable=trainable)
-        self.multi = self.add_weight(name='multi', shape=(4,), dtype=tf.float32,
-                                     initializer=custom_initializer,
                                      trainable=True)
+        self.multi_nomi = self.add_weight(name='multi', shape=(4,), dtype=tf.float32,
+                                          initializer='zeros',
+                                          trainable=False)
+        self.multi_denom = self.add_weight(name='multi', shape=(4,), dtype=tf.float32,
+                                           initializer='zeros',
+                                           trainable=False)
         self.visible = tf.constant(visible, dtype=tf.float32)
         global global_visible
         global_visible = self.visible
@@ -32,10 +29,19 @@ class Idx2PixelLayer(tf.keras.layers.Layer):
         # its very difficult to get the originally used a, b and c so we are estimating
         # the a, b and c of the reverse transform for now
         idx = tf.cast(coords, tf.float32)
-        idx = tf.add(tf.multiply(idx, tf.divide(self.multi[0: 2], shift_multi)),
-                     tf.multiply(idx, tf.divide(self.multi[2:  ], shift_multi)))
+        # [x',y'] = ([x,y].[1+a1,0+b1]) + ([x,y].[0+a2,1+b2])
+        idx = tf.add(tf.multiply(idx, tf.add([1., 0.], tf.divide(self.multi_nomi[0: 2], shift_multi))),
+                     tf.multiply(idx, tf.add([0., 1.], tf.divide(self.multi_nomi[2:], shift_multi))))
         idx = tf.add(idx, self.shift)
-        # idx = tf.subtract(tf.cast(coords, tf.float32), self.shift)
+
+        # denominator is d.*x + e.*y + 1
+        denominator = tf.add(tf.multiply(idx, tf.divide(self.multi_denom[0: 2], shift_multi_2)),
+                             tf.multiply(idx, tf.divide(self.multi_denom[2:], shift_multi_2)))
+        denominator = tf.add(denominator, [1., 1.])
+
+        # together we have projective transform (a.*x + b.*y + c)/(d.*x + e.*y + 1)
+        idx = tf.divide(idx, denominator)
+
         return linear_interpolation(idx)
 
 

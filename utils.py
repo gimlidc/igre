@@ -15,6 +15,7 @@ verbose_level = 1  # display flag, tied to Verbose "enum"
 
 config = {}
 shift_multi = 350
+shift_multi_2 = 3500
 
 
 class Verbose:

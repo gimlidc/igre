@@ -46,6 +46,7 @@ def igre_test(conf, shift, output):
     utils.config = yaml.load(open(conf, 'r'), Loader=yaml.FullLoader)
     config = utils.config
     utils.shift_multi = config["train"]["shift_learning_multi"]
+    utils.shift_multi_2 = config["train"]["shift_learning_multi_2"]
     utils.verbose_level = read_from_config(config, "verbose_level", Verbose.normal)
 
     check_config(config)
@@ -94,6 +95,8 @@ def igre_test(conf, shift, output):
 
     # coordinate transform up to perspective transform
     tform = Transformation(c=shift)  # a=(1.1, -0.1), b=(0.1, 0.9),
+    tform = Transformation(a=(1.05, 0), b=(0, 1.0,))
+    # TODO: nejdriv at to konverguje subpixel pro shift, pak az zkouset scale, rotaci atd.
     inputs = tform.transform(indexes)
     bias, bias_history = igre.run(inputs,
                                   outputs,
@@ -125,7 +128,7 @@ if __name__ == "__main__":
         "-c",
         "--config",
         type=str,
-        default="./input/config.yaml",
+        default="../../input/config.yaml",
         help="Config file for IGRE. For more see example file.",
     )
     parser.add_argument(
