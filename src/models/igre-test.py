@@ -95,7 +95,7 @@ def igre_test(conf, shift, output):
 
     # coordinate transform up to perspective transform
     tform = Transformation(c=shift)  # a=(1.1, -0.1), b=(0.1, 0.9),
-    tform = Transformation(a=(1.05, 0), b=(0, 1.0,))
+    #tform = Transformation(a=(1.05, 0.0), b=(0.05, 1.0,))
     # TODO: nejdriv at to konverguje subpixel pro shift, pak az zkouset scale, rotaci atd.
     inputs = tform.transform(indexes)
     bias, bias_history = igre.run(inputs,

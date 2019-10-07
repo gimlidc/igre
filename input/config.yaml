@@ -1,5 +1,5 @@
-matfile: '/Users/gimli/Qsync/MATLAB/vlasic-dataset.mat'
-verbose_level: 1
+matfile: '../../input/vlasic-dataset.mat'
+verbose_level: 0
 crop:
   left_top:
     x: 0
@@ -23,13 +23,20 @@ stages:
   - type: blur
     params: 21
     epochs: 75
+refine_epochs: 50
 train:
   batch_size: 2048
-  epochs: 150
+  epochs: 100
   use_gpu: false
-  shift_learning_multi: 350 # to achieve different learning rate for shift and rotation
+  shift_learning_multi: 700 # to achieve different learning rate for shift and rotation
+  shift_learning_multi_2: 700000
   optimizer:
     family: "adam"
-    learning_rate: 0.35
-    beta1: 0.01
-    beta2: 0.85
+    learning_rate: 0.7
+    beta1: 0.9
+    beta2: 0.8
+  refiner:
+    family: "SGD"
+    learning_rate: 1.1
+    decay: 0.001
+    momentum: 0.99

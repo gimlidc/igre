@@ -6,6 +6,7 @@ from src.tftools.shift_metric import ShiftMetrics
 import utils
 from utils import *
 from src.data.ann.input_preprocessor import training_batch_selection, blur_preprocessing
+from src.tftools.optimizer_builder import build_refining_optimizer
 
 
 def __train_networks(inputs,
@@ -68,17 +69,20 @@ def __train_networks(inputs,
     print("Compiling model took {:.4f}'s.".format(elapsed_time))
 
     # train model
-
+    refining_optimizer = build_refining_optimizer(utils.config['train']['refiner'])
     start_time = time()
     # TODO: better names for stages
     stages = utils.config["stages"]
     stages.append({'type': 'last', 'epochs': epochs})
+    stages.append({'type': 'refine', 'epochs': utils.config['refine_epochs']})
 
     for stage in (stages):
         if stage['type'] == 'blur':
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
         else:
             output = outputs
+        if stage['type'] == 'refine':
+            model.compile(loss='mean_squared_error', optimizer=refining_optimizer, metrics=['mean_squared_error'])
         output = output[selection, :]
         shift_metric = ShiftMetrics()
         callbacks = [shift_metric]
