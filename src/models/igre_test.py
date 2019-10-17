@@ -38,6 +38,9 @@ def igre_test(conf, shift, output):
     :param output: output file for measured data
     :return: registration layer weights (i.e. computed shift)
     """
+    if os.path.isfile(output):
+        print(output, "already exist. Skipping.")
+        return
 
     # Config load and integrity check
     config = conf.copy()
