@@ -23,12 +23,12 @@ stages:
   - type: blur
     params: 21
     epochs: 75
-refine_epochs: 50
+refine_epochs: 100
 train:
   batch_size: 2048
   epochs: 100
   use_gpu: false
-  shift_learning_multi: 700 # to achieve different learning rate for shift and rotation
+  shift_learning_multi: 10 # to achieve different learning rate for shift and rotation
   shift_learning_multi_2: 700000
   optimizer:
     family: "adam"

@@ -14,9 +14,18 @@ class Idx2PixelLayer(tf.keras.layers.Layer):
         self.shift = self.add_weight(name='shift', shape=(2,), dtype=tf.float32,
                                      initializer='zeros',
                                      trainable=True)
-        self.multi_nomi = self.add_weight(name='multi', shape=(4,), dtype=tf.float32,
+        self.a_x = self.add_weight(name='multi', shape=(1,), dtype=tf.float32,
                                           initializer='zeros',
-                                          trainable=False)
+                                          trainable=True)
+        self.a_y = self.add_weight(name='multi', shape=(1,), dtype=tf.float32,
+                                     initializer='zeros',
+                                     trainable=True)
+        self.b_x = self.add_weight(name='multi', shape=(1,), dtype=tf.float32,
+                                     initializer='zeros',
+                                     trainable=True)
+        self.b_y = self.add_weight(name='multi', shape=(1,), dtype=tf.float32,
+                                     initializer='zeros',
+                                     trainable=True)
         self.multi_denom = self.add_weight(name='multi', shape=(4,), dtype=tf.float32,
                                            initializer='zeros',
                                            trainable=False)
@@ -29,9 +38,19 @@ class Idx2PixelLayer(tf.keras.layers.Layer):
         # its very difficult to get the originally used a, b and c so we are estimating
         # the a, b and c of the reverse transform for now
         idx = tf.cast(coords, tf.float32)
-        # [x',y'] = ([x,y].[1+a1,0+b1]) + ([x,y].[0+a2,1+b2])
-        idx = tf.add(tf.multiply(idx, tf.add([1., 0.], tf.divide(self.multi_nomi[0: 2], shift_multi))),
-                     tf.multiply(idx, tf.add([0., 1.], tf.divide(self.multi_nomi[2:], shift_multi))))
+
+        # [x',y'] = ([x,y].[1+a_x,0+b_x]) , ([x,y].[0+a_y,1+b_y])
+
+        tl = tf.constant([[1.0, 0.0], [0.0, 0.0]])
+        tr = tf.constant([[0.0, 1.0], [0.0, 0.0]])
+        bl = tf.constant([[0.0, 0.0], [1.0, 0.0]])
+        br = tf.constant([[0.0, 0.0], [0.0, 1.0]])
+
+        x_mult = tf.add(tf.add(tl, tf.multiply(tl, tf.divide(self.a_x, shift_multi))), tf.multiply(tr, tf.divide(self.b_x, shift_multi)))
+        y_mult = tf.add(tf.add(br, tf.multiply(br, tf.divide(self.b_y, shift_multi))), tf.multiply(bl, tf.divide(self.a_y, shift_multi)))
+        mult = tf.add(x_mult, y_mult)
+
+        idx = tf.einsum('ij,kj->ki', mult, idx)
         idx = tf.add(idx, self.shift)
 
         # denominator is d.*x + e.*y + 1

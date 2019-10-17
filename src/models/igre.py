@@ -99,19 +99,19 @@ def __train_networks(inputs,
         bias_history = np.array(bias_history)
         Verbose.plot(bias_history)  # plot the shift (c coeff)
 
-        bias_history = [x[1][0:2] for x in shift_metric.bias_history]  # extract the a
+        bias_history = [x[1] for x in shift_metric.bias_history]  # extract the a
         bias_history = np.array(bias_history) / utils.shift_multi
         Verbose.plot(bias_history)  # plot the  (a coeff)
 
-        bias_history = [x[1][2:] for x in shift_metric.bias_history]  # extract the b
+        bias_history = [x[2] for x in shift_metric.bias_history]  # extract the b
         bias_history = np.array(bias_history) / utils.shift_multi
         Verbose.plot(bias_history)  # plot the  (b coeff)
 
-        bias_history = [x[2][0:2] for x in shift_metric.bias_history]  # extract the a
+        bias_history = [x[3]for x in shift_metric.bias_history]  # extract the a
         bias_history = np.array(bias_history) / utils.shift_multi
         Verbose.plot(bias_history)  # plot the  (d coeff)
 
-        bias_history = [x[2][2:] for x in shift_metric.bias_history]  # extract the b
+        bias_history = [x[4] for x in shift_metric.bias_history]  # extract the b
         bias_history = np.array(bias_history) / utils.shift_multi
         Verbose.plot(bias_history)  # plot the  (e coeff)
 
@@ -193,9 +193,12 @@ def run(inputs,
     layer_dict = dict([(layer.name, layer) for layer in model.layers])
     bias = layer_dict['Idx2PixelLayer'].get_weights()
     Verbose.print("Shift detected (c): " + colored(str(bias[0]), "green"), Verbose.always)
-    Verbose.print("linear coeffs (a): " + colored(str(bias[1][0:2]/utils.shift_multi), "green"), Verbose.always)
-    Verbose.print("linear coeffs (b): " + colored(str(bias[1][2:]/utils.shift_multi), "green"), Verbose.always)
-    Verbose.print("linear coeffs (d): " + colored(str(bias[2][0:2]/utils.shift_multi), "green"), Verbose.always)
-    Verbose.print("linear coeffs (e): " + colored(str(bias[2][2:]/utils.shift_multi), "green"), Verbose.always)
+    Verbose.print("linear coeffs (a for x): " + colored(str(bias[1]/shift_multi), "green"), Verbose.always)
+    Verbose.print("linear coeffs (b for x): " + colored(str(bias[2]/shift_multi), "green"), Verbose.always)
+    Verbose.print("linear coeffs (a for y): " + colored(str(bias[3]/shift_multi), "green"), Verbose.always)
+    Verbose.print("linear coeffs (b for y): " + colored(str(bias[4]/shift_multi), "green"), Verbose.always)
+    # Verbose.print("linear coeffs (b): " + colored(str(bias[2]/utils.shift_multi), "green"), Verbose.always)
+    # Verbose.print("linear coeffs (d): " + colored(str(bias[2]/utils.shift_multi_2), "green"), Verbose.always)
+    # Verbose.print("linear coeffs (e): " + colored(str(bias[2]/utils.shift_multi_2), "green"), Verbose.always)
     return bias, bias_history
 
