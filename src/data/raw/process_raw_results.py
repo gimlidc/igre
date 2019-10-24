@@ -7,7 +7,7 @@ def pickle_data(directory: str, output: str):
     databunch = list()
     for file in os.listdir(directory):
         pattern = re.compile(
-            r"x([\-]{0,1}[0-9\.]*)_y([\-]{0,1}[0-9\.]*)_modality_step([0-9]{1,2})_lr(0\.[0-9]*)_([0-9]{1,2})\.result")
+            r"x([\-]{0,1}[0-9\.]*)_y([\-]{0,1}[0-9\.]*)_modality_step-([0-9]{1,2})_([0-9]{1,2})\.result")
         params = pattern.match(file)
         with open(os.path.join(directory, file)) as data:
             data.readline()  # bias line
