@@ -17,7 +17,6 @@ def pickle_data(directory: str, output: str):
                               float(params.group(2)),
                               int(params.group(3)),
                               float(params.group(4)),
-                              int(params.group(5)),
                               x,
                               y])
     print(databunch)
