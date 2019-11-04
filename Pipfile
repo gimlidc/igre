@@ -5,11 +5,12 @@ verify_ssl = true
 
 [dev-packages]
 pytest = "*"
+awscli = "*"
 
 [packages]
 numpy = "*"
 scipy = "*"
-tensorflow = "*"
+tensorflow = "==1.15.0"
 termcolor = "*"
 matplotlib = "*"
 pyyaml = "*"
@@ -18,6 +19,7 @@ pydot = "*"
 sklearn = "*"
 scikit-learn = "*"
 pipenv = "*"
+jsonschema = "*"
 
 [requires]
 python_version = "3.6"

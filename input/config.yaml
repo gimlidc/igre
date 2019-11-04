@@ -1,5 +1,5 @@
-matfile: '../../input/vlasic-dataset.mat'
-verbose_level: 0
+matfile: 'vlasic-dataset.mat'
+verbose_level: 1
 crop:
   left_top:
     x: 0
@@ -16,27 +16,27 @@ output_dimensions:
   min: 27
   max: 27
 expected_max_px_misplacement: 25
-stages:
-  - type: blur
-    params: 51
-    epochs: 75
-  - type: blur
-    params: 21
-    epochs: 75
-refine_epochs: 100
 train:
   batch_size: 2048
-  epochs: 100
+  stages:
+    - type: blur
+      params: 81
+      epochs: 125
+    - type: blur
+      params: 31
+      epochs: 75
+    - type: polish
+      epochs: 25
   use_gpu: false
   shift_learning_multi: 10 # to achieve different learning rate for shift and rotation
   shift_learning_multi_2: 700000
   optimizer:
     family: "adam"
-    learning_rate: 0.7
+    learning_rate: 0.05
     beta1: 0.9
     beta2: 0.8
   refiner:
     family: "SGD"
-    learning_rate: 1.1
+    learning_rate: 10
     decay: 0.001
-    momentum: 0.99
+    momentum: 0.9

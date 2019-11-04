@@ -43,7 +43,7 @@ sync_data_to_s3:
 ifeq (default,$(PROFILE))
 	aws s3 sync data/ s3://$(BUCKET)/data/
 else
-	aws s3 sync data/ s3://$(BUCKET)/data/ --profile $(PROFILE)
+	aws s3 sync data/ s3://$(BUCKET)/data/ --profile $(PROFILE) --debug
 endif
 
 ## Download Data from S3
