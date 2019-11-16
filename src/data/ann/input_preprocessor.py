@@ -1,6 +1,6 @@
-import utils
 import cv2
 import numpy as np
+from src.config.tools import get_config
 
 
 # TODO: wavelet decomposition
@@ -27,7 +27,7 @@ def training_batch_selection(train_set_size, input_dims):
     """
     all_data_indices = np.arange(input_dims[0]*input_dims[1])
     all_data_indices = all_data_indices.reshape(input_dims[:-1])
-    max_misplacement = int(np.floor(utils.config["expected_max_px_misplacement"]))
+    max_misplacement = int(np.floor(get_config()["expected_max_px_misplacement"]))
     selection = all_data_indices[max_misplacement:-max_misplacement,
                                  max_misplacement:-max_misplacement]
     selection = selection.reshape(-1)
