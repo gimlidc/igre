@@ -26,9 +26,18 @@ class Idx2PixelLayer(tf.keras.layers.Layer):
         self.b_y = self.add_weight(name='multi', shape=(1,), dtype=tf.float32,
                                      initializer='zeros',
                                      trainable=True)
-        self.multi_denom = self.add_weight(name='multi', shape=(4,), dtype=tf.float32,
-                                           initializer='zeros',
-                                           trainable=False)
+        self.d_x = self.add_weight(name='multi', shape=(1,), dtype=tf.float32,
+                                          initializer='zeros',
+                                          trainable=True)
+        self.d_y = self.add_weight(name='multi', shape=(1,), dtype=tf.float32,
+                                     initializer='zeros',
+                                     trainable=True)
+        self.e_x = self.add_weight(name='multi', shape=(1,), dtype=tf.float32,
+                                     initializer='zeros',
+                                     trainable=True)
+        self.e_y = self.add_weight(name='multi', shape=(1,), dtype=tf.float32,
+                                     initializer='zeros',
+                                     trainable=True)
         self.visible = tf.constant(visible, dtype=tf.float32)
         global global_visible
         global_visible = self.visible
@@ -54,8 +63,13 @@ class Idx2PixelLayer(tf.keras.layers.Layer):
         idx = tf.add(idx, self.shift)
 
         # denominator is d.*x + e.*y + 1
-        denominator = tf.add(tf.multiply(idx, tf.divide(self.multi_denom[0: 2], shift_multi_2)),
-                             tf.multiply(idx, tf.divide(self.multi_denom[2:], shift_multi_2)))
+        x_denom = (tf.add(tf.multiply(tl, tf.divide(self.d_x, shift_multi))),
+                  tf.multiply(tr, tf.divide(self.e_x, shift_multi)))
+        y_denom = (tf.add(tf.multiply(br, tf.divide(self.e_y, shift_multi))),
+                  tf.multiply(bl, tf.divide(self.d_y, shift_multi)))
+        denom = tf.add(x_denom, y_denom)
+
+        denominator = tf.einsum('ij,kj->ki', denom, idx)
         denominator = tf.add(denominator, [1., 1.])
 
         # together we have projective transform (a.*x + b.*y + c)/(d.*x + e.*y + 1)
