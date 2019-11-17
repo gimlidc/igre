@@ -10,8 +10,8 @@ crop:
 layers:
   - 1
 input_dimensions:
-  min: 27
-  max: 27 # maximum is included into selection
+  min: 25
+  max: 25 # maximum is included into selection
 output_dimensions:
   min: 27
   max: 27
@@ -22,13 +22,21 @@ train:
     - type: blur
       params: 101
       epochs: 50
+      extrapolation_layers_trainable : False # default True
+      #registration_layers_trainable : False # default True
     - type: blur
       params: 51
       epochs: 20
+      extrapolation_layers_trainable : False # default True
+      #registration_layers_trainable : False # default True
     - type: polish
       epochs: 100
+      extrapolation_layers_trainable : False # default True
+      #registration_layers_trainable : False # default True
     - type: refine
       epochs: 50
+      #extrapolation_layers_trainable : False # default True
+      #registration_layers_trainable : False # default True
   use_gpu: false
   shift_learning_multi: 700 # to achieve different learning rate for shift and rotation
   shift_learning_multi_2: 700000

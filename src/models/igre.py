@@ -3,6 +3,7 @@ import tensorflow as tf
 from time import time
 from src.tftools.idx2pixel_layer import Idx2PixelLayer, reset_visible
 from src.tftools.shift_metric import ShiftMetrics
+from src.tftools.layer_weights_metric import LayerWeightsMetric
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from src.logging.verbose import Verbose
 from src.tftools.optimizer_builder import build_optimizer
@@ -13,6 +14,59 @@ from src.data.ann.input_preprocessor import training_batch_selection, blur_prepr
 from src.tftools.optimizer_builder import build_refining_optimizer
 
 MODEL_FILE = "best_model.tmp.h5"
+
+
+def _get_identity_weights(layers, input_shape, output_shape):
+    """train a copy of extrapolation layers to approximate identity function in
+    order to then set the calculated weights to the actual model"""
+
+    input_layer = tf.keras.layers.Input(shape=input_shape,
+                                        dtype=tf.float32,
+                                        name='dummy_input_layer'
+                                       )
+    layer = input_layer
+    for layer_idx in range(len(layers)):
+        layer = tf.keras.layers.Dense(layers[layer_idx],
+                                      activation='sigmoid',
+                                      name='dummy_dense_'
+                                      + str(layer_idx),
+                                      bias_initializer=tf.zeros_initializer()
+                                     )(layer)
+    layer = tf.keras.layers.Dense(output_shape,
+            activation='sigmoid', name='dummy_last_dense',
+            bias_initializer=tf.zeros_initializer())(layer)
+
+    dummy_model = tf.keras.models.Model(inputs=input_layer, outputs=layer)
+
+    # TODO: change inputs and output to actually match in general case, not just
+    # 1-to-1 shapes...
+    dummy_data = np.linspace(0.0, 1.0, 128 * 1024)
+    np.random.shuffle(dummy_data)
+
+    dummy_model.compile(loss='mean_squared_error',
+                        optimizer=tf.train.AdamOptimizer(),
+                        metrics=['mean_squared_error']
+                       )
+
+    history = dummy_model.fit(dummy_data,
+                              dummy_data,
+                              epochs=20,
+                              validation_split=0.2,
+                              verbose=1,
+                              batch_size=1024
+                             )
+
+    #Verbose.plot(history.history['loss'])
+
+    weights = list()
+    for layer in dummy_model.layers[1:]:
+        weights.append(layer.get_weights())
+        #print(layer.name) # sanity check
+
+    return weights
+
+
+
 
 
 def __train_networks(inputs,
@@ -57,48 +111,93 @@ def __train_networks(inputs,
     print('Adding input layer, width =', indexes.shape[1])
     input_layer = tf.keras.layers.Input(shape=(indexes.shape[1],),
                                         dtype=tf.float32, name='InputLayer')
-    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(input_layer)
+    print('Adding Idx2PixelLayer', indexes.shape[1])
+    layer = Idx2PixelLayer(visible=reg_layer_data, name='registration_Idx2PixelLayer')(input_layer)
 
-    # TODO: Add InformationGain layers here when necessary
-    # for layer_idx in range(len(layers)):
-    #     print('Adding dense layer, width =', layers[layer_idx])
-    #     layer = tf.keras.layers.Dense(layers[layer_idx],
-    #                                   activation='sigmoid', name='Dense' + str(layer_idx))(layer)
+    # TODO: make this into a parameter (config, etc.)
+    extrapolation_layers = [20, 20]
+    for layer_idx in range(len(extrapolation_layers)):
+        print('Adding dense layer, width =', extrapolation_layers[layer_idx])
+        layer = tf.keras.layers.Dense(extrapolation_layers[layer_idx],
+                                      activation='sigmoid',
+                                      name='extrapolation_dense_'
+                                      + str(layer_idx),
+                                      bias_initializer=tf.zeros_initializer()
+                                     )(layer)
+    print('Adding dense layer, width =', outputs.shape[1])
+    layer = tf.keras.layers.Dense(outputs.shape[1],
+            activation='sigmoid', name='extrapolation_last_dense',
+            bias_initializer=tf.zeros_initializer())(layer)
+
+    # TODO: remove and uncomment ReLU
+    output_layer = layer
     print('Adding ReLU output layer, width =', outputs.shape[1])
-    output_layer = tf.keras.layers.ReLU(max_value=1, name='Output', trainable=False)(layer)
+    output_layer = tf.keras.layers.ReLU(max_value=1, name='output_relu', trainable=False)(layer)
     model = tf.keras.models.Model(inputs=input_layer, outputs=output_layer)
-
-    # compile model
-    start_time = time()
-    model.compile(loss='mean_squared_error',
-                  optimizer=optimizer,
-                  metrics=['mean_squared_error']
-                  )
-    elapsed_time = time() - start_time
-    print("Compiling model took {:.4f}'s.".format(elapsed_time))
 
     # train model
     start_time = time()
     # TODO: better names for stages
     tf.keras.backend.get_session().run(tf.global_variables_initializer())
 
+
+    # "initialize" extrapolation layers to aproximate identity function
+    identity_weights = _get_identity_weights(extrapolation_layers,
+            model.layers[2].input_shape[1:], outputs.shape[1])
+
+    for weight_idx, layer in enumerate(model.layers[2:-1]): # excluding Idx2Pixel and final ReLU
+        layer.set_weights(identity_weights[weight_idx])
+        #print(layer.name) # sanity check
+
+
     for stage in stages:
+        use_refiner = False
         if stage['type'] == 'blur':
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
         elif stage['type'] == 'refine':
-            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
+            use_refiner = True
             output = outputs
         elif stage['type'] == 'polish':
             output = outputs
 
+
+        # set weights trainability according to config and (re)compile
+        reg_layers_trainable = stage.get('registration_layers_trainable')
+        if reg_layers_trainable == None:
+            reg_layers_trainable = True
+        extrapol_layers_trainable = stage.get('extrapolation_layers_trainable')
+        if extrapol_layers_trainable == None:
+            extrapol_layers_trainable = True
+
+        for layer in model.layers:
+            if 'registration' in layer.name:
+                layer.trainable = reg_layers_trainable
+            elif 'extrapolation' in layer.name:
+                layer.trainable = extrapol_layers_trainable
+            else:
+                pass # leave it as it is
+
+        if use_refiner:
+            model.compile(loss='mean_squared_error',
+                          optimizer=refiner,
+                          metrics=['mean_squared_error']
+                         )
+        else:
+            model.compile(loss='mean_squared_error',
+                        optimizer=optimizer,
+                        metrics=['mean_squared_error']
+                        )
+
+
         reset_visible(output)
         output = output[selection, :]
         shift_metric = ShiftMetrics()
+        weights_metric = LayerWeightsMetric([2, 3, 4]) # dense layers
         # mcp_save = ModelCheckpoint(MODEL_FILE,
         #                            save_best_only=True, monitor='val_loss', mode='min')
         # lr_reduction = ReduceLROnPlateau(monitor='val_loss', factor=0.9, patience=100, verbose=0, mode='auto',
         #                                  min_delta=0.0001, cooldown=0, min_lr=0)
-        callbacks = [shift_metric] #mcp_save]# lr_reduction]
+        callbacks = [shift_metric, weights_metric] #mcp_save]# lr_reduction]
         history = model.fit(indexes,
                             output,
                             epochs=stage['epochs'],
@@ -108,17 +207,32 @@ def __train_networks(inputs,
                             batch_size=batch_size
                             )
 
-        bias_history = [x[0] for x in shift_metric.bias_history]  # extract the shift
-        bias_history = np.array(bias_history)
-        Verbose.plot(bias_history)  # plot the shift (c coeff)
 
-        # bias_history = [x[2][0:2] for x in shift_metric.bias_history]  # extract the a
-        # bias_history = np.array(bias_history) / utils.shift_multi
-        # Verbose.plot(bias_history)  # plot the  (d coeff)
-        #
-        # bias_history = [x[2][2:] for x in shift_metric.bias_history]  # extract the b
-        # bias_history = np.array(bias_history) / utils.shift_multi
-        # Verbose.plot(bias_history)  # plot the  (e coeff)
+        if reg_layers_trainable:
+            bias_history = [x[0] for x in shift_metric.bias_history]  # extract the shift
+            bias_history = np.array(bias_history)
+            Verbose.plot(bias_history, title='shift')  # plot the shift (c coeff)
+
+            # bias_history = [x[2][0:2] for x in shift_metric.bias_history]  # extract the a
+            # bias_history = np.array(bias_history) / utils.shift_multi
+            # Verbose.plot(bias_history)  # plot the  (d coeff)
+            #
+            # bias_history = [x[2][2:] for x in shift_metric.bias_history]  # extract the b
+            # bias_history = np.array(bias_history) / utils.shift_multi
+            # Verbose.plot(bias_history)  # plot the  (e coeff)
+
+        if extrapol_layers_trainable:
+            for layer_idx, weights in weights_metric.weights_history.items():
+                weights_history = [x[0][:][0] for x in weights]
+                weights_history = (np.array(weights_history)
+                                   .reshape(len(weights_history), -1)
+                                  )
+                Verbose.plot(weights_history,
+                             title='weights of dense {}'.format(layer_idx)
+                            )  # plot the weights
+
+        print('\n\n') # to help visually separate the training stages
+
 
     elapsed_time = time() - start_time
     num_epochs = len(history.history['loss'])
@@ -201,7 +315,7 @@ def run(inputs,
     model.summary()
 
     layer_dict = dict([(layer.name, layer) for layer in model.layers])
-    bias = layer_dict['Idx2PixelLayer'].get_weights()
+    bias = layer_dict['registration_Idx2PixelLayer'].get_weights()
     # Verbose.print("linear coeffs (a): " + colored(str(bias[1][0:2]), "green"), Verbose.always)
     # Verbose.print("linear coeffs (b): " + colored(str(bias[1][2:]), "green"), Verbose.always)
     Verbose.print("Shift detected (c): " + colored(str(bias[0]), "green"), Verbose.always)
