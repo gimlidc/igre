@@ -34,7 +34,9 @@ class Verbose:
             plt.show()
 
     @staticmethod
-    def plot(a, level=1):
+    def plot(a, level=1, title=None):
         if level <= verbose_level:
             plt.plot(a)
+            if title:
+                plt.title(title)
             plt.show()
