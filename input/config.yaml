@@ -26,17 +26,19 @@ train:
       params: 31
       epochs: 75
     - type: polish
-      epochs: 25
+      epochs: 50
+    - type: refine
+      epochs: 50
   use_gpu: false
   shift_learning_multi: 10 # to achieve different learning rate for shift and rotation
   shift_learning_multi_2: 700000
   optimizer:
     family: "adam"
-    learning_rate: 0.05
+    learning_rate: 0.7
     beta1: 0.9
     beta2: 0.8
   refiner:
     family: "SGD"
-    learning_rate: 10
+    learning_rate: 1.1
     decay: 0.001
     momentum: 0.9

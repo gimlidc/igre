@@ -1,7 +1,9 @@
 import sys
 import tensorflow as tf
 from time import time
-from src.tftools.registration_layer import RegistrationLayer
+from src.tftools.shift_layer import ShiftLayer
+from src.tftools.scale_layer import ScaleLayer
+from src.tftools.rotation_layer import RotationLayer
 from src.tftools.idx2pixel_layer import Idx2PixelLayer, reset_visible
 from src.tftools.shift_metric import ShiftMetrics
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
@@ -61,8 +63,10 @@ def __train_networks(inputs,
     print('Adding input layer, width =', indexes.shape[1])
     input_layer = tf.keras.layers.Input(shape=(indexes.shape[1],),
                                         dtype=tf.float32, name='InputLayer')
-    registration_layer = RegistrationLayer(name='RegistrationLayer')(input_layer)
-    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(registration_layer)
+    shift_layer = ShiftLayer(name='ShiftLayer')(input_layer)
+    #rotation_layer = RotationLayer(name='RotationLayer')(shift_layer)
+    #scale_layer = ScaleLayer(name='ScaleLayer')(rotation_layer)
+    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(shift_layer)
 
     # TODO: Add InformationGain layers here when necessary
     # for layer_idx in range(len(layers)):
@@ -87,7 +91,10 @@ def __train_networks(inputs,
     start_time = time()
     # TODO: better names for stages
     tf.keras.backend.get_session().run(tf.compat.v1.global_variables_initializer())
-    model.layers[1].set_weights([np.array([0, 0]), np.array([0]), np.array([1, 1]), np.array([0, 0, 1])])
+    model.layers[1].set_weights([np.array([0, 0])])
+    # model.layers[2].set_weights([np.array([0])])
+    # model.layers[3].set_weights([np.array([1, 1])])
+    #model.layers[1].set_weights(np.array([0, 0, 1]))
     for stage in stages:
         if stage['type'] == 'blur':
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
@@ -113,24 +120,23 @@ def __train_networks(inputs,
                             epochs=stage['epochs'],
                             validation_split=0.2,
                             verbose=1,
-                            callbacks=callbacks,
+                            callbacks=[shift_metric],
                             batch_size=batch_size
                             )
 
         shift_x = [x[0][0] for x in shift_metric.bias_history]  # extract the shift
         shift_y = [x[0][1] for x in shift_metric.bias_history]  # extract the shift
-        rotation = [x[1] for x in shift_metric.bias_history]  # extract the shift
-        scale_x = [x[2][0] for x in shift_metric.bias_history]  # extract the shift
-        scale_y = [x[2][1] for x in shift_metric.bias_history]  # extract the shift
+        #rotation = [x[1] for x in shift_metric.bias_history]  # extract the shift
+        #scale_x = [x[2][0] for x in shift_metric.bias_history]  # extract the shift
+        #scale_y = [x[2][1] for x in shift_metric.bias_history]  # extract the shift
         plt.plot(shift_x, label="x")
         plt.plot(shift_y, label="y")
-        plt.plot(rotation, label="rot")
-        plt.plot(scale_x, label="sx")
-        plt.plot(scale_y, label="sy")
+        #plt.plot(rotation, label="rot")
+        #plt.plot(scale_x, label="sx")
+        #plt.plot(scale_y, label="sy")
         plt.title("Transformation")
         plt.legend()
         plt.show()
-
 
     elapsed_time = time() - start_time
     num_epochs = len(history.history['loss'])
@@ -216,10 +222,16 @@ def run(inputs,
     model.summary()
 
     layer_dict = dict([(layer.name, layer) for layer in model.layers])
-    bias = layer_dict['RegistrationLayer'].get_weights()
+    bias = layer_dict['ShiftLayer'].get_weights()
     Verbose.print("Shift: " + colored(str(bias[0]), "green"), Verbose.always)
-    Verbose.print("Rotation: " + colored(str(bias[1]), "green"), Verbose.always)
-    Verbose.print("Scale: " + colored(str(bias[2]), "green"), Verbose.always)
-    Verbose.print("denominator: " + colored(str(bias[3]), "red"), Verbose.always)
+
+    # bias = layer_dict['RotationLayer'].get_weights()
+    # Verbose.print("Rotation: " + colored(str(bias[0]), "green"), Verbose.always)
+    #
+    # bias = layer_dict['ScaleLayer'].get_weights()
+    # Verbose.print("Scale: " + colored(str(bias[0]), "green"), Verbose.always)
+
+    #bias = layer_dict['ShiftLayer'].get_weights()
+    #Verbose.print("denominator: " + colored(str(bias[3]), "red"), Verbose.always)
 
     return bias, bias_history
