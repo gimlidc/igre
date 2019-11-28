@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-verbose_level = 1  # display flag, tied to Verbose "enum"
+verbose_level = 0  # display flag, tied to Verbose "enum"
 #     always = -1       -  displays only things with always tag
 #     metacentrum = 0   -  metacentrum setting, display almost nothing possibly dump into file
 #     normal = 1        -

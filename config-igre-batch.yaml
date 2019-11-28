@@ -1,0 +1,53 @@
+matfile: 'vlasic-dataset.mat'
+verbose_level: 0
+crop:
+  left_top:
+    x: 0
+    y: 0
+  size:
+    width: 400
+    height: 400
+layers:
+  - 1
+input_dimensions:
+  min: 16
+  max: 16 # maximum is included into selection
+output_dimensions:
+  min: 27
+  max: 27
+expected_max_px_misplacement: 50
+train:
+  batch_size: 2048
+  stages:
+    - type: blur
+      params: 101
+      epochs: 50
+    - type: blur
+      params: 51
+      epochs: 20
+    - type: polish
+      epochs: 100
+    - type: refine
+      epochs: 50
+  use_gpu: false
+  optimizer:
+    family: "adam"
+    learning_rate: 0.75
+    beta1: 0.85
+    beta2: 0.999
+  refiner:
+    family: "SGD"
+    learning_rate: 1.1
+    decay: 0.001
+    momentum: 0.99
+batch:
+  params: ["output_dimension", "matfile"]
+  output_dimension:
+    min: 9
+    max: 16
+    step: 2
+  matfile:
+    template: "sample_{id}.mat"
+    replace: "{id}"
+    min: 1
+    max: 44
