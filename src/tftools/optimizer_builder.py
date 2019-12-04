@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-
 def build_optimizer(config, batch_size):
     """
     Factory for building optimizer from configuration file. Now supported only adam optimizer with defined lr, beta1,
@@ -13,7 +12,6 @@ def build_optimizer(config, batch_size):
         generated optimizer
     """
     print("Building optimizer: " + str(config))
-
     learning_rate = tf.compat.v1.train.exponential_decay(
         config["learning_rate"],  # Base learning rate.
         K.variable(1) * batch_size,  # Current index into the dataset.

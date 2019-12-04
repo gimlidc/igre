@@ -94,7 +94,9 @@ def igre_test(conf, shift, output):
     Verbose.print("\nCalling " + colored("IGRE\n", "green") + "...")
 
     # coordinate transform up to perspective transform
-    tform = Transformation(a=(1., 0.), b=(0.0, 1.0,), c=shift)
+    shift = (7., -9.)
+    tform = Transformation(a=(1.0, 0.0), b=(0.0, 1.0,), c=shift)
+    tform.set_rotation(2.5)  # 0.05236 rad
     #tform.set_shift(shift)
 
     # TODO: nejdriv at to konverguje subpixel pro shift, pak az zkouset scale, rotaci atd.
@@ -104,6 +106,7 @@ def igre_test(conf, shift, output):
                                   outputs,
                                   visible=visible)
 
+    output = None
     if output is not None:
         with open(output, 'w') as ofile:
             config["bias"] = {

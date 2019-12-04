@@ -1,18 +1,9 @@
 import tensorflow as tf
-from tensorflow.python.keras.constraints import Constraint
-import numpy as np
+from src.tftools.custom_constraint import TanhConstraint
+from src.config.tools import get_config
 
-
-class MinMaxConstraint(Constraint):
-    def __init__(self, mn=-np.inf, mx=np.inf):
-        self.minimum = mn
-        self.maximum = mx
-
-    def __call__(self, weight):
-        return tf.clip_by_value(weight, self.minimum, self.maximum)
-
-    def get_config(self):
-        return {'minimum': self.minimum, 'maximum': self.maximum}
+shift_multi = 2000.
+# hadles shift +- 20
 
 
 class ShiftLayer(tf.keras.layers.Layer):
@@ -26,10 +17,12 @@ class ShiftLayer(tf.keras.layers.Layer):
         # shift in pixels
         self.shift = self.add_weight(name='multi', shape=(2,), dtype=tf.float32, initializer='zeros',
                                      trainable=True,
-                                     constraint=MinMaxConstraint(-25., 25.))
+                                     constraint=TanhConstraint()
+                                     )
 
     def call(self, coords, **kwargs):
         # [x',y'] = [x + c_x, y + c_y]
+        config = get_config()
         idx = tf.cast(coords, tf.float32)
-        idx = tf.add(idx, self.shift)
+        idx = tf.add(idx, tf.multiply((self.shift), config["layer_normalization"]["shift"]))
         return idx

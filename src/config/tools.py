@@ -49,6 +49,11 @@ config_schema = {
         }
     },
     "expected_max_shift_px": "nonNegativeInteger",
+    "layer_normalization": {
+        "shift": "number",
+        "scale": "number",
+        "rotation": "number"
+    },
     "train": {
         "type": "object",
         "required": True,

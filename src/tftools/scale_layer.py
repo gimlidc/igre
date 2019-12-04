@@ -1,5 +1,10 @@
 import tensorflow as tf
-import numpy as np
+from src.tftools.custom_constraint import MinMaxConstraint, DiminishLearningRate
+from src.config.tools import get_config
+
+scale_base = 1.
+scale_multi = 0.1
+# 0.1 is doable, its not uniform though
 
 
 class ScaleLayer(tf.keras.layers.Layer):
@@ -13,26 +18,13 @@ class ScaleLayer(tf.keras.layers.Layer):
 
         # scale in x and in y
         self.scale = self.add_weight(name='multi', shape=(2,), dtype=tf.float32, initializer='zeros',
-                                     trainable=False)
+                                     trainable=True,
+                                     #constraint=MinMaxConstraint(-1., 1.)  # DiminishLearningRate(1000.))
+                                     )
 
     def call(self, coords, **kwargs):
-        affine = tf.concat(
-            [tf.concat([tf.reshape([[self.scale[0], 0], [0, self.scale[1]]], (2, 2)),
-                       tf.reshape(tf.constant([0, 0], dtype=tf.float32), (2, 1))], axis=1),
-             tf.constant([[0, 0, 1]], dtype=tf.float32)], axis=0)
-
-        # s_x  0    0
-        # 0    s_y  0
-        # 0    0    1
-        # scale matrix,  scaling by s_x, s_y
-
-        batch_size = tf.shape(coords)[0]
-        idx = tf.concat([tf.cast(coords, tf.float32), tf.ones((batch_size, 1))], axis=1)
-
-        # [x',y'] = [x*s_x, y*s_y]
-        scaled = tf.einsum("ij,kj->ik", idx, affine)
-
-        idx = tf.concat([tf.reshape(scaled[:, 0], (batch_size, 1)),
-                         tf.reshape(scaled[:, 1], (batch_size, 1))], axis=1)
+        config = get_config()
+        idx = tf.cast(coords, tf.float32)
+        idx = tf.multiply(idx, tf.add(tf.multiply(self.scale, config["layer_normalization"]["scale"]), scale_base))
 
         return idx
