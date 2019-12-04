@@ -44,7 +44,7 @@ batch:
   params: ["output_dimension", "matfile"]
   output_dimension:
     min: 9
-    max: 17
+    max: 25
     step: 2
   matfile:
     template: "sample_{id}.mat"
