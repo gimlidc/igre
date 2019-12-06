@@ -6,7 +6,7 @@ from src.tftools.scale_layer import ScaleLayer
 from src.tftools.rotation_layer import RotationLayer
 from src.tftools.shear_layer import ShearLayer
 from src.tftools.idx2pixel_layer import Idx2PixelLayer, reset_visible
-from src.tftools.shift_metric import ShiftMetrics, ScaleMetrics
+from src.tftools.transform_metric import ShiftMetrics, ScaleMetrics, RotationMetrics
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from src.logging.verbose import Verbose
 from src.tftools.optimizer_builder import build_optimizer
@@ -67,8 +67,8 @@ def __train_networks(inputs,
     shift_layer = ShiftLayer(name='ShiftLayer')(input_layer)
     scale_layer = ScaleLayer(name='ScaleLayer')(shift_layer)
     rotation_layer = RotationLayer(name='RotationLayer')(scale_layer)
-    shear_layer = ShearLayer(name='ShearLayer')(rotation_layer)
-    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(shear_layer)
+    # shear_layer = ShearLayer(name='ShearLayer')(rotation_layer)
+    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(rotation_layer)
 
     # TODO: Add InformationGain layers here when necessary
     # for layer_idx in range(len(layers)):
@@ -96,7 +96,7 @@ def __train_networks(inputs,
     model.layers[1].set_weights([np.array([0, 0])])  # shift
     model.layers[2].set_weights([np.array([0, 0])])  # scale
     model.layers[3].set_weights([np.array([0])])     # rotation
-    model.layers[4].set_weights([np.array([0])])  # shear_x
+    # model.layers[4].set_weights([np.array([0])])  # shear_x
     for stage in stages:
         if stage['type'] == 'blur':
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
@@ -110,6 +110,7 @@ def __train_networks(inputs,
         output = output[selection, :]
         shift_metric = ShiftMetrics()
         scale_metric = ScaleMetrics()
+        rotation_metric = RotationMetrics()
         # mcp_save = ModelCheckpoint(MODEL_FILE,
         #                            save_best_only=True, monitor='val_loss', mode='min')
         # lr_reduction = ReduceLROnPlateau(monitor='val_loss', factor=0.9, patience=100, verbose=0, mode='auto',
@@ -123,7 +124,7 @@ def __train_networks(inputs,
                             epochs=stage['epochs'],
                             validation_split=0.2,
                             verbose=1,
-                            callbacks=[shift_metric, scale_metric],
+                            callbacks=[shift_metric, scale_metric, rotation_metric],
                             batch_size=batch_size
                             )
 
@@ -236,7 +237,7 @@ def run(inputs,
     bias = layer_dict['ScaleLayer'].get_weights()
     Verbose.print("Scale: " + colored(str(bias[0]*config["layer_normalization"]["scale"] + 1), "green"), Verbose.always)
 
-    bias = layer_dict['ShearLayer'].get_weights()
-    Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)
+    # bias = layer_dict['ShearLayer'].get_weights()
+    # Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)
 
     return bias, bias_history

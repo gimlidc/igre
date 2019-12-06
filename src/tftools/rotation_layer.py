@@ -18,7 +18,7 @@ class RotationLayer(tf.keras.layers.Layer):
         # rotation by an angle in radians
         self.rotation = self.add_weight(name='multi', shape=(1,), dtype=tf.float32, initializer='zeros',
                                         trainable=True,
-                                        #constraint=TanhConstraint()
+                                        # constraint=TanhConstraint()
                                         )
 
     def call(self, coords, **kwargs):
