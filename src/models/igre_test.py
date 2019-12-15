@@ -54,6 +54,7 @@ def igre_test(conf, shift, output):
         "\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
         " expected shift: " + colored(shift, "green") + "\n")
 
+    # Load dataset
     if "matfile" in config:
         dataset = np.float64(scipy.io.loadmat(os.path.join(ROOT_DIR, "data", "raw", config["matfile"]))['data'])
     else:
@@ -64,6 +65,7 @@ def igre_test(conf, shift, output):
     # data normalization - ranged
     dataset = (dataset - np.min(dataset)) / (np.max(dataset) - np.min(dataset))
 
+    # Crop image according to config
     Verbose.print("Dataset shape: " + str(dataset.shape), Verbose.debug)
     dataset = data_crop(config, dataset)
 
@@ -76,6 +78,7 @@ def igre_test(conf, shift, output):
     Verbose.imshow(visible[:, :, 0])
 
     x = visible.shape[:-1]
+    # Create [x,y] pairs as the input for ANN
     indexes = np.indices(x)
     indexes = indexes.reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
 
@@ -87,36 +90,44 @@ def igre_test(conf, shift, output):
                            str(config["output_dimensions"][
                                    "max"]) + "]"),
                           "green"), Verbose.debug)
+
+    # Use just specified modalities
     outputs = dataset[:, :, config["output_dimensions"]["min"]: config["output_dimensions"]["max"] + 1]
 
     Verbose.print("\tOutput shape: " + str(outputs.shape), Verbose.debug)
 
     Verbose.print("\nCalling " + colored("IGRE\n", "green") + "...")
 
-    # coordinate transform up to perspective transform
+    # Setup transformation:
     shift = (5., 6.)
     tform = Transformation(a=(1.0, 0.0), b=(0.0, 1.0,), c=shift)
     tform.set_rotation(1.)  # 0.05236 rad
-    #tform.set_shift(shift)
-
-    # TODO: nejdriv at to konverguje subpixel pro shift, pak az zkouset scale, rotaci atd.
 
     inputs = tform.transform(indexes)
     bias, bias_history = igre.run(inputs,
                                   outputs,
                                   visible=visible)
 
-    output = None
     if output is not None:
         with open(output, 'w') as ofile:
             config["bias"] = {
-                "x": float(bias[0][0]),
-                "y": float(bias[0][1])
+                "x": float(bias[0][0][0] * config["layer_normalization"]["shift"]),
+                "y": float(bias[0][0][1] * config["layer_normalization"]["shift"]),
+                "rotation": float(bias[1][0][0] * config["layer_normalization"]["rotation"] * 180 / np.pi),
+                "scale_x": float(bias[2][0][0] * config["layer_normalization"]["scale"] + 1),
+                "scale_y": float(bias[2][0][1] * config["layer_normalization"]["scale"] + 1)
             }
-            config["bias_history"] = {
-                "x": [float(hist[0][0]) for hist in bias_history],
-                "y": [float(hist[0][1]) for hist in bias_history]
-            }
+            if "print_bias_history" in config["train"]:
+                bias_history["shift_x"] = bias_history["shift_x"] * config["layer_normalization"]["shift"]
+                bias_history["shift_y"] = bias_history["shift_y"] * config["layer_normalization"]["shift"]
+                bias_history["rotation"] = [rot * float(config["layer_normalization"]["rotation"] * 180 / np.pi)
+                                            for rot in bias_history["rotation"]]
+                bias_history["scale_x"] = [(scale * config["layer_normalization"]["scale"]) + 1
+                                           for scale in bias_history["scale_x"]]
+                bias_history["scale_y"] = [(scale * config["layer_normalization"]["scale"]) + 1
+                                           for scale in bias_history["scale_y"]]
+                config["bias_history"] = bias_history
+
             ofile.write(yaml.dump(config))
 
 

@@ -1,7 +1,7 @@
 import os
 import re
 import pickle
-
+from src.data.yaml import parse_reached_trasformation_from_raw
 
 def pickle_data(directory: str, output: str):
     databunch = list()
@@ -9,16 +9,13 @@ def pickle_data(directory: str, output: str):
         pattern = re.compile(
             r"x([\-]{0,1}[0-9\.]*)_y([\-]{0,1}[0-9\.]*)_modality_step([\-]{0,1}[0-9]{1,2})_([0-9]{1,2})\.result")
         params = pattern.match(file)
-        with open(os.path.join(directory, file)) as data:
-            data.readline()  # bias line
-            x = float(data.readline()[5:])
-            y = float(data.readline()[5:])
-            databunch.append([float(params.group(1)),
-                              float(params.group(2)),
-                              int(params.group(3)),
-                              float(params.group(4)),
-                              x,
-                              y])
+        data_record = [float(params.group(1)),
+                       float(params.group(2)),
+                       int(params.group(3)),
+                       float(params.group(4))]
+        data_record.extend(parse_reached_trasformation_from_raw(os.path.join(directory, file)))
+        databunch.append(data_record)
+
     print(databunch)
     pickle_out = open(output, "wb")
     pickle.dump(databunch, pickle_out)
