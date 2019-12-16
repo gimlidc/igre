@@ -43,7 +43,7 @@ def igre_test(conf, transformation, output):
         return
 
     # Config load and integrity check
-    if type(output) == str:
+    if type(conf) == str:
         with open(conf, "rt", encoding='utf-8') as config_file:
             config = yaml.load(config_file)
     else:
