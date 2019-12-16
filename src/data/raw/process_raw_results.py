@@ -3,6 +3,7 @@ import re
 import pickle
 from src.data.yaml import parse_reached_trasformation_from_raw
 
+
 def pickle_data(directory: str, output: str):
     databunch = list()
     for file in os.listdir(directory):

@@ -29,18 +29,18 @@ def data_crop(config, dataset):
     return dataset
 
 
-def igre_test(conf, shift, output):
+def igre_test(conf, transformation, output):
     """
     Information gain and registration test works with registered inputs. For testing registration layer, input pixels
     are shifted by shift[0] in x axis and by shift[1] in y axis.
     :param conf: configuration of IGRE run, accepted is dict of parsed values as well as filename with stored params
-    :param shift: tuple containing shift in x and in y axis of input dimensions
+    :param transformation: tuple containing shift in x, in y, rotation and scale [x,y]
     :param output: output file for measured data
     :return: registration layer weights (i.e. computed shift)
     """
-    # if os.path.isfile(output):
-    #     print(output, "already exist. Skipping.")
-    #     return
+    if os.path.isfile(output):
+        print(output, "already exist. Skipping.")
+        return
 
     # Config load and integrity check
     if type(output) == str:
@@ -52,7 +52,7 @@ def igre_test(conf, shift, output):
 
     Verbose.print(
         "\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
-        " expected shift: " + colored(shift, "green") + "\n")
+        " expected transformation: " + colored(transformation, "green") + "\n")
 
     # Load dataset
     if "matfile" in config:
@@ -99,9 +99,9 @@ def igre_test(conf, shift, output):
     Verbose.print("\nCalling " + colored("IGRE\n", "green") + "...")
 
     # Setup transformation:
-    shift = (5., 6.)
-    tform = Transformation(a=(1.0, 0.0), b=(0.0, 1.0,), c=shift)
-    tform.set_rotation(1.)  # 0.05236 rad
+    shift = (-transformation[0], -transformation[1])
+    tform = Transformation(a=(transformation[3], 0.0), b=(0.0, transformation[4],), c=shift)
+    tform.set_rotation(transformation[2])  # 0.05236 rad
 
     inputs = tform.transform(indexes)
     bias, bias_history = igre.run(inputs,
@@ -157,10 +157,31 @@ if __name__ == "__main__":
         help="y-Shift of the input data",
     )
     parser.add_argument(
+        "-r",
+        "--rotation",
+        type=float,
+        default=0,
+        help="Rotation of the input data",
+    )
+    parser.add_argument(
+        "-t",
+        "--x-scale",
+        type=float,
+        default=0,
+        help="x-scale of the input data",
+    )
+    parser.add_argument(
+        "-u",
+        "--y-scale",
+        type=float,
+        default=0,
+        help="y-scale of the input data",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         type=str,
         help="yaml output file, where collected data will be placed",
     )
     args = parser.parse_args()
-    igre_test(args.config, (args.x_shift, args.y_shift), args.output)
+    igre_test(args.config, (args.x_shift, args.y_shift, args.rotation, args.x_scale, args.y_scale), args.output)
