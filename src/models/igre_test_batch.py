@@ -112,12 +112,12 @@ if __name__ == "__main__":
                                           args.y_shift,
                                           args.rotation,
                                           args.x_scale,
-                                          args.y_sale), args.repeats)
+                                          args.y_scale), args.repeats)
     print("done")
     for run_conf in batch:
         igre_test(run_conf, (args.x_shift,
                              args.y_shift,
                              args.rotation,
                              args.x_scale,
-                             args.y_sale),
+                             args.y_scale),
                   os.path.join(args.batch_dir, run_conf["output"]))
