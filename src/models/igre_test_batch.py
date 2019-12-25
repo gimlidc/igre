@@ -3,6 +3,7 @@ import yaml
 import numpy as np
 from copy import deepcopy
 import os
+import multiprocessing
 
 OUT_FILENAME_FORMAT = "t_{SHIFT_X}_{SHIFT_Y}_{ROTATION}_{SCALE_X}_{SCALE_Y}" \
                       + "_modstep{MODALITY_DIFF}_sample{SAMPLE}_{CUSTOM}.result"
@@ -114,10 +115,17 @@ if __name__ == "__main__":
                                           args.x_scale,
                                           args.y_scale), args.repeats)
     print("done")
+
+    cores = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(8)
+
     for run_conf in batch:
-        igre_test(run_conf, (args.x_shift,
-                             args.y_shift,
-                             args.rotation,
-                             args.x_scale,
-                             args.y_scale),
-                  os.path.join(args.batch_dir, run_conf["output"]))
+        pool.apply_async(igre_test, [run_conf, (args.x_shift,
+                                                args.y_shift,
+                                                args.rotation,
+                                                args.x_scale,
+                                                args.y_scale),
+                                     os.path.join(args.batch_dir, run_conf["output"])])
+
+    pool.close()
+    pool.join()
