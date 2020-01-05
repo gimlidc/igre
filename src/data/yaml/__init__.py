@@ -3,7 +3,7 @@ import yaml
 
 def parse_reached_trasformation_from_raw(filename):
     with open(filename, "rt") as file:
-        results = yaml.load(file,Loader=yaml.Loader)
+        results = yaml.load(file, Loader=yaml.Loader)
     return [float(results["bias"]["x"]),
             float(results["bias"]["y"]),
             float(results["bias"]["rotation"]),
