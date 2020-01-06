@@ -3,7 +3,6 @@ import re
 import pickle
 from src.data.yaml import parse_reached_trasformation_from_raw
 
-
 def pickle_data(directory: str, output: str):
     databunch = list()
     for subfolder in os.listdir(directory):
@@ -19,16 +18,19 @@ def pickle_data(directory: str, output: str):
                 r"sample([0-9]{1,2})_" +
                 r"([0-9]{1,2})\.result")
             params = pattern.match(file)
-            data_record = [float(params.group(1)), # shift x
-                           float(params.group(2)), # shift y
-                           float(params.group(3)), # rotation
-                           float(params.group(4)), # scale x
-                           float(params.group(5)), # scale y
-                           int(params.group(6)), # modstep
-                           int(params.group(7)), # sample no
-                           int(params.group(8))] # repeat
-            data_record.extend(parse_reached_trasformation_from_raw(os.path.join(directory, subfolder, file)))
-            databunch.append(data_record)
+            if params:
+                data_record = [float(params.group(1)), # shift x
+                               float(params.group(2)), # shift y
+                               float(params.group(3)), # rotation
+                               float(params.group(4)), # scale x
+                               float(params.group(5)), # scale y
+                               int(params.group(6)), # modstep
+                               int(params.group(7)), # sample no
+                               int(params.group(8))] # repeat
+                data_record.extend(parse_reached_trasformation_from_raw(os.path.join(directory, subfolder, file)))
+                databunch.append(data_record)
+            else:
+                print(file, "filename parsing failed.")
 
     print(databunch)
     pickle_out = open(output, "wb")
