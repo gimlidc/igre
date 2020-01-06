@@ -9,7 +9,7 @@ def pickle_data(directory: str, output: str):
         for file in os.listdir(os.path.join(directory, subfolder)):
             #"t_0.0_0.0_5.0_1.1_1.1_modstep0_sample13_1.result"
             pattern = re.compile(
-                r"t([\-]{0,1}[0-9\.]*)_" +
+                r"t_([\-]{0,1}[0-9\.]*)_" +
                 r"([\-]{0,1}[0-9\.]*)_" +
                 r"([\-]{0,1}[0-9\.]*)_" +
                 r"([\-]{0,1}[0-9\.]*)_" +
