@@ -3,6 +3,7 @@ import re
 import pickle
 from src.data.yaml import parse_reached_trasformation_from_raw
 
+
 def pickle_data(directory: str, output: str):
     databunch = list()
     for subfolder in os.listdir(directory):
@@ -27,8 +28,11 @@ def pickle_data(directory: str, output: str):
                                int(params.group(6)), # modstep
                                int(params.group(7)), # sample no
                                int(params.group(8))] # repeat
-                data_record.extend(parse_reached_trasformation_from_raw(os.path.join(directory, subfolder, file)))
-                databunch.append(data_record)
+                try:
+                    data_record.extend(parse_reached_trasformation_from_raw(os.path.join(directory, subfolder, file)))
+                    databunch.append(data_record)
+                except Exception as e:
+                    print(file, "not properly parsed", e)
             else:
                 print(file, "filename parsing failed.")
 
