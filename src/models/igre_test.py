@@ -167,14 +167,14 @@ if __name__ == "__main__":
         "-t",
         "--x-scale",
         type=float,
-        default=0,
+        default=1,
         help="x-scale of the input data",
     )
     parser.add_argument(
         "-u",
         "--y-scale",
         type=float,
-        default=0,
+        default=1,
         help="y-scale of the input data",
     )
     parser.add_argument(
