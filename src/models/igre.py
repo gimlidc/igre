@@ -108,16 +108,19 @@ def __train_networks(inputs,
         if stage['type'] == 'blur':
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
             __set_train_registration(model, True)
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
         elif stage['type'] == 'refine':
-            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
             output = outputs
-            __set_train_registration(model, True)
+            __set_train_registration(model, True, flip=False)
+            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
         elif stage['type'] == 'polish':
             output = outputs
-            __set_train_registration(model, True)
+            __set_train_registration(model, True, flip=False)
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
         elif stage["type"] == "mutual_init":
             __set_train_registration(model, False)
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['blur'])
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
 
         reset_visible(output)
         output = output[selection, :]
@@ -155,18 +158,25 @@ def __train_networks(inputs,
     return model, history, bias_history
 
 
-def __set_train_registration(model, value):
+def __set_train_registration(model, value, flip=True):
     """
     For various stages of training registration should not be trainable (we are looking for base mutual setup).
     This method allows enabling/disabling of trainability of first three layers of ANN.
     :param model: ANN
     :param value: boolean
     """
-    model.layers[1].set_trainable(value)
-    model.layers[2].set_trainable(value)
-    model.layers[3].set_trainable(value)
-    model.layers[5].trainable = (not value)
-    model.layers[6].trainable = (not value)
+    if flip == True:
+        model.layers[1].set_trainable(value)
+        model.layers[2].set_trainable(value)
+        model.layers[3].set_trainable(value)
+        model.layers[5].trainable = (not value)
+        model.layers[6].trainable = (not value)
+    else:
+        model.layers[1].set_trainable(True)
+        model.layers[2].set_trainable(True)
+        model.layers[3].set_trainable(True)
+        model.layers[5].trainable = True
+        model.layers[6].trainable = True
 
 
 def __information_gain(coords,
@@ -248,5 +258,7 @@ def run(inputs,
     # Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)
 
     Verbose.imshow(extrapolation)
+    Verbose.imshow(outputs)
+    Verbose.imshow(ig)
 
     return bias, bias_history

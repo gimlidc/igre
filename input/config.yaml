@@ -5,17 +5,17 @@ crop:
     x: 0
     y: 0
   size:
-    width: 300
+    width: 400
     height: 400
 layers:
   - 25
   - 25
 input_dimensions:
-  min: 16
-  max: 16 # maximum is included into selection
+  min: 13
+  max: 13 # maximum is included into selection
 output_dimensions:
-  min: 27
-  max: 27
+  min: 20
+  max: 20
 expected_max_px_misplacement: 25
 layer_normalization:
   shift: 1000
@@ -26,10 +26,10 @@ train:
   stages:
     - type: mutual_init
       blur: 121 # this is blur for the init stage
-      epochs: 100
+      epochs: 50
     - type: blur
       params: 81
-      epochs: 100
+      epochs: 200
     - type: mutual_init
       blur: 51 # this is blur for the init stage
       epochs: 100
@@ -48,16 +48,14 @@ train:
     - type: blur
       params: 3
       epochs: 100
-    - type: polish
-      epochs: 100
     - type: mutual_init
-      blur: 1 # this is blur for the init stage
+      blur: 3 # this is blur for the init stage
+      epochs: 100
+    - type: polish
       epochs: 100
     - type: refine
       epochs: 100
   use_gpu: false
-  shift_learning_multi: 10 # to achieve different learning rate for shift and rotation
-  shift_learning_multi_2: 700000
   optimizer:
     family: "adam"
     learning_rate: 0.0005
