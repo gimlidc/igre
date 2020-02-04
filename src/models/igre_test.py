@@ -103,6 +103,8 @@ def igre_test(conf, transformation, output):
     tform = Transformation(a=(transformation[3], 0.0), b=(0.0, transformation[4],), c=shift)
     tform.set_rotation(transformation[2])  # 0.05236 rad
 
+    Verbose.imshow(tform.tform_img(visible))
+
     inputs = tform.transform(indexes)
     bias, bias_history = igre.run(inputs,
                                   outputs,

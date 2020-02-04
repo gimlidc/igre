@@ -8,31 +8,53 @@ crop:
     width: 300
     height: 400
 layers:
-  - 1
+  - 25
+  - 25
 input_dimensions:
-  min: 27
-  max: 27 # maximum is included into selection
+  min: 16
+  max: 16 # maximum is included into selection
 output_dimensions:
   min: 27
   max: 27
 expected_max_px_misplacement: 25
 layer_normalization:
-  shift: 2000
+  shift: 1000
   scale: 0.1
-  rotation: 0.1
+  rotation: 0.2
 train:
   batch_size: 2048
   stages:
+    - type: mutual_init
+      blur: 121 # this is blur for the init stage
+      epochs: 100
     - type: blur
       params: 81
-      epochs: 475
+      epochs: 100
+    - type: mutual_init
+      blur: 51 # this is blur for the init stage
+      epochs: 100
     - type: blur
       params: 31
-      epochs: 475
+      epochs: 100
+    - type: mutual_init
+      blur: 15 # this is blur for the init stage
+      epochs: 100
+    - type: blur
+      params: 9
+      epochs: 100
+    - type: mutual_init
+      blur: 5 # this is blur for the init stage
+      epochs: 100
+    - type: blur
+      params: 3
+      epochs: 100
     - type: polish
-      epochs: 475
+      epochs: 100
+    - type: mutual_init
+      blur: 1 # this is blur for the init stage
+      epochs: 100
     - type: refine
-      epochs: 450
+      epochs: 100
   use_gpu: false
   shift_learning_multi: 10 # to achieve different learning rate for shift and rotation
   shift_learning_multi_2: 700000
@@ -43,7 +65,7 @@ train:
     beta2: 0.8
   refiner:
     family: "SGD"
-    learning_rate: 0.0001
+    learning_rate: 0.001
     decay: 0.001
     momentum: 0.9
 

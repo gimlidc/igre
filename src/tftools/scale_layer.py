@@ -9,7 +9,7 @@ scale_multi = 0.1
 
 class ScaleLayer(tf.keras.layers.Layer):
 
-    def __init__(self, trainable=True, **kwargs):
+    def __init__(self, **kwargs):
         """
         :param visible: one dimension of visible image (for this dimension [x,y] will be computed)
         """
@@ -28,3 +28,6 @@ class ScaleLayer(tf.keras.layers.Layer):
         idx = tf.multiply(idx, tf.add(tf.multiply(self.scale, config["layer_normalization"]["scale"]), scale_base))
 
         return idx
+
+    def set_trainable(self, value):
+        self.scale._trainable = value

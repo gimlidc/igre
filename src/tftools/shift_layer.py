@@ -26,3 +26,6 @@ class ShiftLayer(tf.keras.layers.Layer):
         idx = tf.cast(coords, tf.float32)
         idx = tf.add(idx, tf.multiply((self.shift), config["layer_normalization"]["shift"]))
         return idx
+
+    def set_trainable(self, value):
+        self.shift._trainable = value

@@ -68,13 +68,13 @@ def __train_networks(inputs,
     # shear_layer = ShearLayer(name='ShearLayer')(rotation_layer)
     layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(rotation_layer)
 
-    # TODO: Add InformationGain layers here when necessary
-    # for layer_idx in range(len(layers)):
-    #     print('Adding dense layer, width =', layers[layer_idx])
-    #     layer = tf.keras.layers.Dense(layers[layer_idx],
-    #                                   activation='sigmoid', name='Dense' + str(layer_idx))(layer)
+    for layer_idx in range(len(layers)):
+        print('Adding dense layer, width =', layers[layer_idx])
+        layer = tf.keras.layers.Dense(layers[layer_idx],
+                                      activation='sigmoid', name='Dense' + str(layer_idx))(layer)
     print('Adding ReLU output layer, width =', outputs.shape[1])
-    output_layer = tf.keras.layers.ReLU(max_value=1, name='Output', trainable=False)(layer)
+    output_layer = tf.keras.layers.Dense(outputs.shape[1], name='Output', activation='sigmoid')(layer)
+    # output_layer = tf.keras.layers.ReLU(max_value=1, name='Output', trainable=False)(layer)
     model = tf.keras.models.Model(inputs=input_layer, outputs=output_layer)
 
     # compile model
@@ -90,7 +90,7 @@ def __train_networks(inputs,
     # train model
     start_time = time()
     # TODO: better names for stages
-    tf.keras.backend.get_session().run(tf.compat.v1.global_variables_initializer())
+    tf.compat.v1.keras.backend.get_session().run(tf.compat.v1.global_variables_initializer())
     model.layers[1].set_weights([np.array([0, 0])])  # shift
     model.layers[2].set_weights([np.array([0, 0])])  # scale
     model.layers[3].set_weights([np.array([0])])     # rotation
@@ -107,11 +107,17 @@ def __train_networks(inputs,
     for stage in stages:
         if stage['type'] == 'blur':
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
+            __set_train_registration(model, True)
         elif stage['type'] == 'refine':
             model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
             output = outputs
+            __set_train_registration(model, True)
         elif stage['type'] == 'polish':
             output = outputs
+            __set_train_registration(model, True)
+        elif stage["type"] == "mutual_init":
+            __set_train_registration(model, False)
+            output = blur_preprocessing(outputs, reg_layer_data.shape, stage['blur'])
 
         reset_visible(output)
         output = output[selection, :]
@@ -147,6 +153,20 @@ def __train_networks(inputs,
     print('Gain: {:1.4e}'.format(information_gain_max))
 
     return model, history, bias_history
+
+
+def __set_train_registration(model, value):
+    """
+    For various stages of training registration should not be trainable (we are looking for base mutual setup).
+    This method allows enabling/disabling of trainability of first three layers of ANN.
+    :param model: ANN
+    :param value: boolean
+    """
+    model.layers[1].set_trainable(value)
+    model.layers[2].set_trainable(value)
+    model.layers[3].set_trainable(value)
+    model.layers[5].trainable = (not value)
+    model.layers[6].trainable = (not value)
 
 
 def __information_gain(coords,
@@ -188,7 +208,7 @@ def __information_gain(coords,
                                                     )
     # show output of the first two layers
     extrapolation = model.predict(coords, batch_size=batch_size)
-    extrapolation = extrapolation.reshape(target.shape[0], target.shape[1], 1)
+    extrapolation = extrapolation.reshape(target.shape[0], target.shape[1], outputs.shape[1])
 
     ig = target - extrapolation
 
@@ -226,5 +246,7 @@ def run(inputs,
 
     # bias = layer_dict['ShearLayer'].get_weights()
     # Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)
+
+    Verbose.imshow(extrapolation)
 
     return bias, bias_history

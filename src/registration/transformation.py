@@ -22,14 +22,22 @@ class Transformation:
         self.d = np.asarray(d)
         self.e = np.asarray(e)
 
+    def __create_3by3(self):
+        return np.concatenate([np.stack([self.a, self.b, self.c]).T, np.array([[0, 0, 1]])], axis=0)
+
     def set_shift(self, shift):
         self.c = shift
 
     def set_rotation(self, angle_degrees, center=(0, 0)):
         transformation_matrix = cv2.getRotationMatrix2D(center, angle_degrees, 1)
-        self.a = transformation_matrix[:, 0]
-        self.b = transformation_matrix[:, 1]
-        self.c += transformation_matrix[:, 2]
+        # add third row
+        transformation_matrix = np.concatenate([transformation_matrix, np.array([[0, 0, 1]])])
+        print(transformation_matrix)
+
+        matrix = np.matmul(self.__create_3by3(), transformation_matrix)
+        self.a = matrix[:2, 0]
+        self.b = matrix[:2, 1]
+        self.c = matrix[:2, 2]
 
     def transform(self, coordinates):
         """
@@ -51,6 +59,13 @@ class Transformation:
         transformed_coordinates = transformed_coordinates / denominator
 
         return transformed_coordinates
+
+    def tform_img(self, img):
+        M = np.array([
+            [self.a[0], self.b[0], self.c[0]],
+            [self.a[1], self.b[1], self.c[1]]
+        ])
+        return cv2.warpAffine(img, M, (img.shape[1], img.shape[0]))
 
     def __str__(self):
         return str(self.a[0]) + "x + " + str(self.b[0]) + "y + " + str(self.c[0]) + "\t" + \
