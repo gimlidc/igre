@@ -17,7 +17,7 @@ from src.data.ann.input_preprocessor import training_batch_selection, blur_prepr
 from src.tftools.optimizer_builder import build_refining_optimizer
 
 MODEL_FILE = "best_model.tmp.h5"
-
+tf.keras.utils.Progbar(target=None, width=100)
 
 def __train_networks(inputs,
                      outputs,
@@ -111,11 +111,11 @@ def __train_networks(inputs,
             model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
         elif stage['type'] == 'refine':
             output = outputs
-            __set_train_registration(model, True, flip=False)
+            __set_train_registration(model, True, target="shift")
             model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
         elif stage['type'] == 'polish':
             output = outputs
-            __set_train_registration(model, True, flip=False)
+            __set_train_registration(model, True, target="all")
             model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
         elif stage["type"] == "mutual_init":
             __set_train_registration(model, False)
@@ -155,28 +155,40 @@ def __train_networks(inputs,
     information_gain_max = gain.flatten().max()
     print('Gain: {:1.4e}'.format(information_gain_max))
 
+    Verbose.plot([float(step[0][0]) for step in shift_metric.bias_history])
+    Verbose.plot([float(step[0][1]) for step in shift_metric.bias_history])
+
     return model, history, bias_history
 
 
-def __set_train_registration(model, value, flip=True):
+def __set_train_registration(model, value, target="registration"):
     """
     For various stages of training registration should not be trainable (we are looking for base mutual setup).
     This method allows enabling/disabling of trainability of first three layers of ANN.
     :param model: ANN
     :param value: boolean
     """
-    if flip == True:
-        model.layers[1].set_trainable(value)
-        model.layers[2].set_trainable(value)
-        model.layers[3].set_trainable(value)
+    if target == "registration":
+        model.layers[1].trainable = value
+        model.layers[2].trainable = value
+        model.layers[3].trainable = value
         model.layers[5].trainable = (not value)
         model.layers[6].trainable = (not value)
-    else:
-        model.layers[1].set_trainable(True)
-        model.layers[2].set_trainable(True)
-        model.layers[3].set_trainable(True)
-        model.layers[5].trainable = True
-        model.layers[6].trainable = True
+        model.layers[7].trainable = (not value)
+    elif target == "all":
+        model.layers[1].trainable = value
+        model.layers[2].trainable = value
+        model.layers[3].trainable = value
+        model.layers[5].trainable = value
+        model.layers[6].trainable = value
+        model.layers[7].trainable = value
+    elif target == "shift":
+        model.layers[1].trainable = value
+        model.layers[2].trainable = not value
+        model.layers[3].trainable = not value
+        model.layers[5].trainable = not value
+        model.layers[6].trainable = not value
+        model.layers[7].trainable = not value
 
 
 def __information_gain(coords,

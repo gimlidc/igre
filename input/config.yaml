@@ -64,6 +64,6 @@ train:
   refiner:
     family: "SGD"
     learning_rate: 0.001
-    decay: 0.001
-    momentum: 0.9
+    decay: 0.01
+    momentum: 0.5
 

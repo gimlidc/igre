@@ -36,6 +36,3 @@ class RotationLayer(tf.keras.layers.Layer):
         idx = tf.einsum("ij,kj->ik", idx, affine)
 
         return idx
-
-    def set_trainable(self, value):
-        self.rotation._trainable = value

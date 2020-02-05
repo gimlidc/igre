@@ -28,6 +28,3 @@ class ScaleLayer(tf.keras.layers.Layer):
         idx = tf.multiply(idx, tf.add(tf.multiply(self.scale, config["layer_normalization"]["scale"]), scale_base))
 
         return idx
-
-    def set_trainable(self, value):
-        self.scale._trainable = value
