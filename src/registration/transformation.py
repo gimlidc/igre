@@ -22,6 +22,12 @@ class Transformation:
         self.d = np.asarray(d)
         self.e = np.asarray(e)
 
+        self.cx = np.asarray(0.)
+        self.cy = np.asarray(0.)
+        self.k1 = np.asarray(0.)
+        self.k2 = np.asarray(0.)
+        self.k3 = np.asarray(0.)
+
     def set_shift(self, shift):
         self.c = shift
 
@@ -49,6 +55,34 @@ class Transformation:
         denominator = np.einsum("i,j->ij", coords[:, 0], self.d) + \
                       np.einsum("i,j->ij", coords[:, 1], self.e) + 1
         transformed_coordinates = transformed_coordinates / denominator
+
+        return transformed_coordinates
+
+    def set_distortion(self, cx, cy, k1, k2, k3=0):
+        self.cx = cx
+        self.cy = cy
+        self.k1 = k1
+        self.k2 = k2
+        self.k3 = k3
+
+    def apply_distortion(self, coordinates):
+        if len(coordinates)//2 == 1:
+            coords = np.reshape(np.asarray(coordinates), (1, 2))
+        else:
+            coords = np.asarray(coordinates)
+
+        image_size = np.amax(coords, axis=0)
+        coords_norm = np.divide(np.multiply(coords, 2), image_size) - [1., 1.]
+        radii = np.sqrt(np.power(coords_norm[:, 0] - self.cx, 2) + np.power(coords_norm[:, 1] - self.cy, 2))
+        L = np.multiply(np.power(radii, 2), self.k1) + \
+            np.multiply(np.power(radii, 4), self.k2) + \
+            np.multiply(np.power(radii, 6), self.k3) + 1.
+        transformed_coordinates_x = self.cx + np.multiply(coords_norm[:, 0] - self.cx, L)
+        transformed_coordinates_y = self.cy + np.multiply(coords_norm[:, 1] - self.cy, L)
+        transformed_coordinates = np.vstack((transformed_coordinates_x, transformed_coordinates_y))
+        transformed_coordinates = np.transpose(transformed_coordinates)
+        transformed_coordinates = np.divide(np.multiply(transformed_coordinates + [1., 1.],
+                                                        image_size), 2)
 
         return transformed_coordinates
 

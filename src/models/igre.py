@@ -4,9 +4,10 @@ from time import time
 from src.tftools.shift_layer import ShiftLayer
 from src.tftools.scale_layer import ScaleLayer
 from src.tftools.rotation_layer import RotationLayer
+from src.tftools.radial_distortion_layer import RDistortionLayer
 from src.tftools.shear_layer import ShearLayer
 from src.tftools.idx2pixel_layer import Idx2PixelLayer, reset_visible
-from src.tftools.transform_metric import ShiftMetrics, ScaleMetrics, RotationMetrics
+from src.tftools.transform_metric import ShiftMetrics, ScaleMetrics, RotationMetrics, DistortionMetrics
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from src.logging.verbose import Verbose
 from src.tftools.optimizer_builder import build_optimizer
@@ -67,8 +68,9 @@ def __train_networks(inputs,
     shift_layer = ShiftLayer(name='ShiftLayer')(input_layer)
     scale_layer = ScaleLayer(name='ScaleLayer')(shift_layer)
     rotation_layer = RotationLayer(name='RotationLayer')(scale_layer)
+    radial_distortion_layer = RDistortionLayer(name='RDistortionLayer')(rotation_layer)
     # shear_layer = ShearLayer(name='ShearLayer')(rotation_layer)
-    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(rotation_layer)
+    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer)
 
     # TODO: Add InformationGain layers here when necessary
     # for layer_idx in range(len(layers)):
@@ -111,6 +113,7 @@ def __train_networks(inputs,
         shift_metric = ShiftMetrics()
         scale_metric = ScaleMetrics()
         rotation_metric = RotationMetrics()
+        distortion_metric = DistortionMetrics()
         # mcp_save = ModelCheckpoint(MODEL_FILE,
         #                            save_best_only=True, monitor='val_loss', mode='min')
         # lr_reduction = ReduceLROnPlateau(monitor='val_loss', factor=0.9, patience=100, verbose=0, mode='auto',
@@ -124,18 +127,25 @@ def __train_networks(inputs,
                             epochs=stage['epochs'],
                             validation_split=0.2,
                             verbose=1,
-                            callbacks=[shift_metric, scale_metric, rotation_metric],
+                            callbacks=[shift_metric, scale_metric, rotation_metric, distortion_metric],
                             batch_size=batch_size
                             )
 
         shift_x = [x[0][0] for x in shift_metric.bias_history]  # extract the shift
         shift_y = [x[0][1] for x in shift_metric.bias_history]  # extract the shift
 
-        scale_x = [x[0][0] for x in scale_metric.bias_history]  # extract the shift
-        scale_y = [x[0][1] for x in scale_metric.bias_history]  # extract the shift
+        center_x = [x[1][0] for x in distortion_metric.bias_history]  # extract the shift
+        center_y = [x[1][1] for x in distortion_metric.bias_history]  # extract the shift
 
-        plt.plot(shift_x, label="x")
-        plt.plot(shift_y, label="y")
+        coef_1 = [x[0][0] for x in distortion_metric.bias_history]  # extract the shift
+        coef_2 = [x[0][1] for x in distortion_metric.bias_history]  # extract the shift
+        coef_3 = [x[0][2] for x in distortion_metric.bias_history]  # extract the shift
+
+        plt.plot(center_x, label="x")
+        plt.plot(center_y, label="y")
+        plt.plot(coef_1, label="1")
+        plt.plot(coef_2, label="2")
+        plt.plot(coef_3, label="3")
 
         #plt.plot(scale_x, label="sx")
         #plt.plot(scale_y, label="sy")
@@ -236,6 +246,10 @@ def run(inputs,
 
     bias = layer_dict['ScaleLayer'].get_weights()
     Verbose.print("Scale: " + colored(str(bias[0]*config["layer_normalization"]["scale"] + 1), "green"), Verbose.always)
+
+    bias = layer_dict['RDistortionLayer'].get_weights()
+    Verbose.print("center: " + colored(str(bias[1]), "green"), Verbose.always)
+    Verbose.print("coefs: " + colored(str(bias[0]*config["layer_normalization"]["radial_distortion"]), "green"), Verbose.always)
 
     # bias = layer_dict['ShearLayer'].get_weights()
     # Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)

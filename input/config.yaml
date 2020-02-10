@@ -1,4 +1,4 @@
-matfile: 'sample_7.mat'
+matfile: 'sample_15.mat'
 verbose_level: 1
 crop:
   left_top:
@@ -15,11 +15,12 @@ input_dimensions:
 output_dimensions:
   min: 27
   max: 27
-expected_max_px_misplacement: 25
+expected_max_px_misplacement: 75
 layer_normalization:
   shift: 2000
   scale: 0.1
   rotation: 0.1
+  radial_distortion: 1.
 train:
   batch_size: 2048
   stages:

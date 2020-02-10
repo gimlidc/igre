@@ -94,12 +94,13 @@ def igre_test(conf, shift, output):
     Verbose.print("\nCalling " + colored("IGRE\n", "green") + "...")
 
     # coordinate transform up to perspective transform
-    shift = (-1., 0.)
-    tform = Transformation(a=(1.1, 0.0), b=(0.0, 1.1,), c=shift)
-    #tform.set_rotation(3.)  # 0.05236 rad
+    shift = (0., 0.)
+    tform = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    #tform.set_rotation(0.)  # 0.05236 rad
     #tform.set_shift(shift)
+    tform.set_distortion(0., 0., -0.35, 0.17, 0.)
 
-    inputs = tform.transform(indexes)
+    inputs = tform.apply_distortion(indexes)
     bias, bias_history = igre.run(inputs,
                                   outputs,
                                   visible=visible)

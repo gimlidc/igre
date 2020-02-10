@@ -16,7 +16,7 @@ class ShiftLayer(tf.keras.layers.Layer):
         tf.compat.v1.constant_initializer()
         # shift in pixels
         self.shift = self.add_weight(name='multi', shape=(2,), dtype=tf.float32, initializer='zeros',
-                                     trainable=True,
+                                     trainable=False,
                                      constraint=TanhConstraint()
                                      )
 
