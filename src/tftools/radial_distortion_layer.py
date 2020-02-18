@@ -7,19 +7,27 @@ from src.config.tools import get_config
 
 class RDistortionLayer(tf.keras.layers.Layer):
 
-    def __init__(self, trainable=True, **kwargs):
+    def __init__(self, trainable=3, **kwargs):
         """
         :param visible: one dimension of visible image (for this dimension [x,y] will be computed)
         """
         super(RDistortionLayer, self).__init__(**kwargs)
         tf.compat.v1.constant_initializer()
         # shift in pixels
-        self.coefs = self.add_weight(name='multi', shape=(3,), dtype=tf.float32, initializer='zeros',
-                                      trainable=True,
+        self.k1 = self.add_weight(name='multi', shape=(1,), dtype=tf.float32, initializer='zeros',
+                                      trainable=(1 & trainable == 1),
+                                      #constraint=TanhConstraint()
+                                      )
+        self.k2 = self.add_weight(name='multi', shape=(1,), dtype=tf.float32, initializer='zeros',
+                                      trainable=(2 & trainable == 2),
+                                      #constraint=TanhConstraint()
+                                      )
+        self.k3 = self.add_weight(name='multi', shape=(1,), dtype=tf.float32, initializer='zeros',
+                                      trainable=(4 & trainable == 4),
                                       #constraint=TanhConstraint()
                                       )
         self.center = self.add_weight(name='multi', shape=(2,), dtype=tf.float32, initializer='zeros',
-                                      trainable=False,
+                                      trainable=trainable == 7,
                                       #constraint=TanhConstraint()
                                       )
 
@@ -33,10 +41,12 @@ class RDistortionLayer(tf.keras.layers.Layer):
         dist_from_center = tf.subtract(coords_norm, self.center)
         radius = tf.sqrt(tf.add(tf.pow(dist_from_center[:, 0], 2),
                          tf.pow(dist_from_center[:, 1], 2)))
-        coefs = tf.multiply(self.coefs, config["layer_normalization"]["radial_distortion"])
-        distortion = tf.add(tf.add(tf.multiply(coefs[0], tf.pow(radius, 2)),
-                                   tf.add(tf.multiply(coefs[1], tf.pow(radius, 4)),
-                                          tf.multiply(0., tf.pow(radius, 6))
+        k1 = tf.multiply(self.k1, config["layer_normalization"]["radial_distortion"])
+        k2 = tf.multiply(self.k2, config["layer_normalization"]["radial_distortion"])
+        k3 = tf.multiply(self.k3, config["layer_normalization"]["radial_distortion"])
+        distortion = tf.add(tf.add(tf.multiply(k1, tf.pow(radius, 2)),
+                                   tf.add(tf.multiply(k2, tf.pow(radius, 4)),
+                                          tf.multiply(k3, tf.pow(radius, 6))
                                           )
                                    ),
                             1.)

@@ -20,7 +20,7 @@ import datetime
 import matplotlib.pyplot as plt
 
 MODEL_FILE = "best_model.tmp.h5"
-
+tf.keras.utils.Progbar(target=None, width=100)
 
 def __train_networks(inputs,
                      outputs,
@@ -94,7 +94,7 @@ def __train_networks(inputs,
     # train model
     start_time = time()
     # TODO: better names for stages
-    tf.keras.backend.get_session().run(tf.compat.v1.global_variables_initializer())
+    tf.compat.v1.keras.backend.get_session().run(tf.compat.v1.global_variables_initializer())
     model.layers[1].set_weights([np.array([0, 0])])  # shift
     model.layers[2].set_weights([np.array([0, 0])])  # scale
     model.layers[3].set_weights([np.array([0])])     # rotation
@@ -102,11 +102,32 @@ def __train_networks(inputs,
     for stage in stages:
         if stage['type'] == 'blur':
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
+            __set_train_registration(model, True)
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
         elif stage['type'] == 'refine':
-            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
             output = outputs
+            __set_train_registration(model, True, target="shift")
+            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
         elif stage['type'] == 'polish':
             output = outputs
+            __set_train_registration(model, True)
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        elif stage['type'] == 'dist_1':
+            output = outputs
+            __set_train_registration(model, 1, target="distortion")
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        elif stage['type'] == 'dist_2':
+            output = outputs
+            __set_train_registration(model, 2, target="distortion")
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        elif stage['type'] == 'dist_3':
+            output = outputs
+            __set_train_registration(model, 4, target="distortion")
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        elif stage['type'] == 'refine_dist':
+            output = outputs
+            __set_train_registration(model, 7, target="distortion")
+            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
 
         reset_visible(output)
         output = output[selection, :]
@@ -134,12 +155,12 @@ def __train_networks(inputs,
         shift_x = [x[0][0] for x in shift_metric.bias_history]  # extract the shift
         shift_y = [x[0][1] for x in shift_metric.bias_history]  # extract the shift
 
-        center_x = [x[1][0] for x in distortion_metric.bias_history]  # extract the shift
-        center_y = [x[1][1] for x in distortion_metric.bias_history]  # extract the shift
+        center_x = [x[3][0] for x in distortion_metric.bias_history]  # extract the shift
+        center_y = [x[3][1] for x in distortion_metric.bias_history]  # extract the shift
 
-        coef_1 = [x[0][0] for x in distortion_metric.bias_history]  # extract the shift
-        coef_2 = [x[0][1] for x in distortion_metric.bias_history]  # extract the shift
-        coef_3 = [x[0][2] for x in distortion_metric.bias_history]  # extract the shift
+        coef_1 = [x[0] for x in distortion_metric.bias_history]  # extract the shift
+        coef_2 = [x[1] for x in distortion_metric.bias_history]  # extract the shift
+        coef_3 = [x[2] for x in distortion_metric.bias_history]  # extract the shift
 
         plt.plot(center_x, label="x")
         plt.plot(center_y, label="y")
@@ -167,6 +188,43 @@ def __train_networks(inputs,
     print('Gain: {:1.4e}'.format(information_gain_max))
 
     return model, history, shift_metric.bias_history
+
+
+def __set_train_registration(model, value, target="registration"):
+    """
+    For various stages of training registration should not be trainable (we are looking for base mutual setup).
+    This method allows enabling/disabling of trainability of first three layers of ANN.
+    :param model: ANN
+    :param value: boolean
+    """
+    if target == "registration":
+        model.layers[1].trainable = value
+        model.layers[2].trainable = value
+        model.layers[3].trainable = value
+        model.layers[4].trainable = (not value)
+        model.layers[5].trainable = (not value)
+        model.layers[6].trainable = (not value)
+    elif target == "all":
+        model.layers[1].trainable = value
+        model.layers[2].trainable = value
+        model.layers[3].trainable = value
+        model.layers[4].trainable = value
+        model.layers[5].trainable = value
+        model.layers[6].trainable = value
+    elif target == "shift":
+        model.layers[1].trainable = value
+        model.layers[2].trainable = not value
+        model.layers[3].trainable = not value
+        model.layers[4].trainable = not value
+        model.layers[5].trainable = not value
+        model.layers[6].trainable = not value
+    elif target == "distortion":
+        model.layers[1].trainable = not value
+        model.layers[2].trainable = not value
+        model.layers[3].trainable = not value
+        model.layers[4].trainable = value
+        model.layers[5].trainable = not value
+        model.layers[6].trainable = not value
 
 
 def __information_gain(coords,
@@ -248,8 +306,13 @@ def run(inputs,
     Verbose.print("Scale: " + colored(str(bias[0]*config["layer_normalization"]["scale"] + 1), "green"), Verbose.always)
 
     bias = layer_dict['RDistortionLayer'].get_weights()
-    Verbose.print("center: " + colored(str(bias[1]), "green"), Verbose.always)
-    Verbose.print("coefs: " + colored(str(bias[0]*config["layer_normalization"]["radial_distortion"]), "green"), Verbose.always)
+    Verbose.print("center: " + colored(str(bias[3]), "green"), Verbose.always)
+    u_bias = [x * config["layer_normalization"]["radial_distortion"] for x in bias[:3]]
+    exp_k1 = -u_bias[0]
+    exp_k2 = 3*u_bias[0]*u_bias[0] - u_bias[1]
+    exp_k3 = -12*u_bias[0]*u_bias[0]*u_bias[0] + 8*u_bias[0]*u_bias[1] - u_bias[2]
+    Verbose.print("coefs: " + colored(str(u_bias), "green"), Verbose.always)
+    Verbose.print("coefs: " + colored(str([exp_k1, exp_k2, exp_k3]), "green"), Verbose.always)
 
     # bias = layer_dict['ShearLayer'].get_weights()
     # Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)

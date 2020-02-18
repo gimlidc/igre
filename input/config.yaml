@@ -24,16 +24,18 @@ layer_normalization:
 train:
   batch_size: 2048
   stages:
-    - type: blur
-      params: 81
-      epochs: 650
-    - type: blur
-      params: 31
-      epochs: 650
-    - type: polish
-      epochs: 650
-    - type: refine
-      epochs: 650
+    - type: dist_1
+      epochs: 250
+    - type: dist_2
+      epochs: 250
+    - type: dist_1
+      epochs: 250
+    - type: dist_2
+      epochs: 250
+    - type: dist_3
+      epochs: 250
+    - type: refine_dist
+      epochs: 250
   use_gpu: false
   shift_learning_multi: 10 # to achieve different learning rate for shift and rotation
   shift_learning_multi_2: 700000
