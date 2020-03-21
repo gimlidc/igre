@@ -40,7 +40,7 @@ def __train_networks(inputs, outputs, layers, training_set_size):
         layer = tf.keras.layers.Dense(layers[layer_idx],
                                       activation='sigmoid', name='Dense' + str(layer_idx))(layer)
     print('Adding dense layer, width =', outputs.shape[1])
-    output_layer = tf.keras.layers.Dense(outputs.shape[1], activation='sigmoid', name='Output')(layer)
+    output_layer = tf.keras.layers.Dense(outputs.shape[1], activation='linear', name='Output')(layer)
 
     model = tf.keras.models.Model(inputs=input_layer, outputs=output_layer)
 
@@ -58,7 +58,7 @@ def __train_networks(inputs, outputs, layers, training_set_size):
                                                   min_delta=10 ** -5)]
     history = model.fit(ins,
                         outs,
-                        epochs=10,
+                        epochs=40,
                         validation_split=0.2,
                         verbose=1,
                         callbacks=callbacks

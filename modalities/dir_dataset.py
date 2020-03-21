@@ -22,6 +22,7 @@ def load_all_images(path, convert_to_grayscale=True):
             print("Directory: ", file, " not loaded.")
             continue
 
+        print(f"Loading image {file_path}")
         img = cv2.imread(file_path)
         if convert_to_grayscale:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)

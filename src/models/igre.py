@@ -12,9 +12,12 @@ from src.logging.verbose import Verbose
 from src.tftools.optimizer_builder import build_optimizer
 from src.config.tools import get_config, get_or_default
 import numpy as np
+import cv2
 from termcolor import colored
 from src.data.ann.input_preprocessor import training_batch_selection, blur_preprocessing
 from src.tftools.optimizer_builder import build_refining_optimizer
+import yaml
+from src.config.tools import init_config
 
 MODEL_FILE = "best_model.tmp.h5"
 tf.keras.utils.Progbar(target=None, width=100)
@@ -274,3 +277,20 @@ def run(inputs,
     Verbose.imshow(ig)
 
     return bias, bias_history
+
+
+if __name__ == "__main__":
+    with open("input/config.yaml", "rt", encoding='utf-8') as config_file:
+        config = yaml.load(config_file)
+
+    init_config(config)
+
+    l = cv2.imread("/Users/gimli/Qsync/datasets/Nightwatch/vis-L.png") / 255.0
+    pbl = cv2.cvtColor(cv2.imread("/Users/gimli/Qsync/datasets/Nightwatch/pbl.png"), cv2.COLOR_BGR2GRAY) / 255.0
+    x = l.shape[:-1]
+    # Create [x,y] pairs as the input for ANN
+    indexes = np.indices(x)
+    indexes = indexes.transpose().reshape((l.shape[0] * l.shape[1], 2)).astype(np.float32)
+
+    bias = run(indexes, pbl.reshape((pbl.shape[0], pbl.shape[1], 1)), l[:,:,0].reshape(l.shape[0], l.shape[1], 1))
+    print(bias)
