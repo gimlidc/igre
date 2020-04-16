@@ -31,6 +31,8 @@ def training_batch_selection(train_set_size, input_dims):
     selection = all_data_indices[max_misplacement:-max_misplacement,
                                  max_misplacement:-max_misplacement]
     selection = selection.reshape(-1)
+    all_data_indices = all_data_indices.reshape(-1)
+    selection = [x for x in all_data_indices if x not in selection]
     selection = np.random.permutation(selection)
     selection = selection[:train_set_size]
 

@@ -98,12 +98,41 @@ def igre_test(conf, shift, output):
     tform = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
     #tform.set_rotation(0.)  # 0.05236 rad
     #tform.set_shift(shift)
-    tform.set_distortion(0., 0., -0.35, 0.17, 0.)
+
+    k1 = -0.025
+    k2 = 0.0
+    k3 = 0.0
+    exp_k1 = -k1
+    exp_k2 = 3 * k1 * k1 - k2
+    exp_k3 = -12 * k1 * k1 * k1 + 8 * k1 * k2 - k3
+    tform.set_distortion(0., 0., k1, k2, k3)
+    tform_test = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    tform_test.set_distortion(0., 0., exp_k1, exp_k2, exp_k3)
 
     inputs = tform.apply_distortion(indexes)
+    sanitycheck = tform_test.apply_distortion(inputs)
+    diff = abs(indexes - sanitycheck)
+    displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 0], 2))
+    displacement = displacement.reshape(400, 400)
+    mean = np.mean(displacement)
+    Verbose.imshow(displacement)
+
     bias, bias_history = igre.run(inputs,
                                   outputs,
                                   visible=visible)
+
+    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    tform_inv.set_distortion(0., 0., bias[0], bias[1], bias[2])
+    inputs_recreated = tform_inv.apply_distortion(inputs)
+    diff_r = abs(indexes - inputs_recreated)
+    displacement_r = np.sqrt(np.power(diff_r[:, 0], 2) + np.power(diff_r[:, 0], 2))
+    displacement_r = displacement_r.reshape(400, 400)
+    mean_r = np.mean(displacement_r)
+    Verbose.imshow(displacement_r)
+    print("coefs gt: " + str([exp_k1, exp_k2, exp_k3]))
+    print("mean: " + str(float(mean)))
+    print("mean_r: " + str(float(mean_r)))
+
 
     output = None
     if output is not None:

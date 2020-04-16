@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from src.config.tools import get_config
 
 
 class Transformation:
@@ -71,8 +72,12 @@ class Transformation:
         else:
             coords = np.asarray(coordinates)
 
+        config = get_config()
+        w = config['crop']['size']['width'] - 1
+        h = config['crop']['size']['height'] - 1
+
         image_size = np.amax(coords, axis=0)
-        coords_norm = np.divide(np.multiply(coords, 2), image_size) - [1., 1.]
+        coords_norm = np.divide(np.multiply(coords, 2), [h, w]) - [1., 1.]
         radii = np.sqrt(np.power(coords_norm[:, 0] - self.cx, 2) + np.power(coords_norm[:, 1] - self.cy, 2))
         L = np.multiply(np.power(radii, 2), self.k1) + \
             np.multiply(np.power(radii, 4), self.k2) + \
@@ -82,7 +87,7 @@ class Transformation:
         transformed_coordinates = np.vstack((transformed_coordinates_x, transformed_coordinates_y))
         transformed_coordinates = np.transpose(transformed_coordinates)
         transformed_coordinates = np.divide(np.multiply(transformed_coordinates + [1., 1.],
-                                                        image_size), 2)
+                                                        [h, w]), 2)
 
         return transformed_coordinates
 

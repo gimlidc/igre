@@ -1,4 +1,4 @@
-matfile: 'sample_15.mat'
+matfile: 'vlasic-dataset.mat'
 verbose_level: 1
 crop:
   left_top:
@@ -15,38 +15,36 @@ input_dimensions:
 output_dimensions:
   min: 27
   max: 27
-expected_max_px_misplacement: 75
+expected_max_px_misplacement: 15
 layer_normalization:
   shift: 2000
   scale: 0.1
   rotation: 0.1
-  radial_distortion: 1.
+  radial_distortion: 1.2
+  radial_distortion_2: 3.5
+  radial_distortion_3: 0.04
 train:
   batch_size: 2048
   stages:
     - type: dist_1
-      epochs: 250
+      epochs: 200
+    - type: dist_1_2
+      epochs: 200
     - type: dist_2
-      epochs: 250
-    - type: dist_1
-      epochs: 250
-    - type: dist_2
-      epochs: 250
-    - type: dist_3
-      epochs: 250
-    - type: refine_dist
-      epochs: 250
+      epochs: 200
+    - type: dist_2_2
+      epochs: 200
   use_gpu: false
   shift_learning_multi: 10 # to achieve different learning rate for shift and rotation
   shift_learning_multi_2: 700000
   optimizer:
     family: "adam"
-    learning_rate: 0.0005
+    learning_rate: 0.0000035
     beta1: 0.9
     beta2: 0.8
   refiner:
     family: "SGD"
-    learning_rate: 0.0001
+    learning_rate: 0.001
     decay: 0.001
     momentum: 0.9
 

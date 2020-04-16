@@ -5,6 +5,8 @@ from src.tftools.shift_layer import ShiftLayer
 from src.tftools.scale_layer import ScaleLayer
 from src.tftools.rotation_layer import RotationLayer
 from src.tftools.radial_distortion_layer import RDistortionLayer
+from src.tftools.radial_distortion_layer_2 import RDistortionLayer2
+from src.tftools.radial_distortion_layer_3 import RDistortionLayer3
 from src.tftools.shear_layer import ShearLayer
 from src.tftools.idx2pixel_layer import Idx2PixelLayer, reset_visible
 from src.tftools.transform_metric import ShiftMetrics, ScaleMetrics, RotationMetrics, DistortionMetrics
@@ -69,8 +71,10 @@ def __train_networks(inputs,
     scale_layer = ScaleLayer(name='ScaleLayer')(shift_layer)
     rotation_layer = RotationLayer(name='RotationLayer')(scale_layer)
     radial_distortion_layer = RDistortionLayer(name='RDistortionLayer')(rotation_layer)
+    radial_distortion_layer_2 = RDistortionLayer(name='RDistortionLayer2')(radial_distortion_layer)
+    radial_distortion_layer_3 = RDistortionLayer(name='RDistortionLayer3')(radial_distortion_layer_2)
     # shear_layer = ShearLayer(name='ShearLayer')(rotation_layer)
-    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer)
+    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer_3)
 
     # TODO: Add InformationGain layers here when necessary
     # for layer_idx in range(len(layers)):
@@ -120,11 +124,28 @@ def __train_networks(inputs,
             output = outputs
             __set_train_registration(model, 2, target="distortion")
             model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        elif stage['type'] == 'dist_1_2':
+            output = outputs
+            __set_train_registration(model, 1, target="distortion")
+            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
+        elif stage['type'] == 'dist_2_2':
+            output = outputs
+            __set_train_registration(model, 2, target="distortion")
+            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
         elif stage['type'] == 'dist_3':
             output = outputs
             __set_train_registration(model, 4, target="distortion")
             model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        elif stage['type'] == 'dist_3_2':
+            output = outputs
+            __set_train_registration(model, 4, target="distortion")
+            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
+
         elif stage['type'] == 'refine_dist':
+            output = outputs
+            __set_train_registration(model, 7, target="distortion")
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        elif stage['type'] == 'refine_dist_2':
             output = outputs
             __set_train_registration(model, 7, target="distortion")
             model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
@@ -155,15 +176,15 @@ def __train_networks(inputs,
         shift_x = [x[0][0] for x in shift_metric.bias_history]  # extract the shift
         shift_y = [x[0][1] for x in shift_metric.bias_history]  # extract the shift
 
-        center_x = [x[3][0] for x in distortion_metric.bias_history]  # extract the shift
-        center_y = [x[3][1] for x in distortion_metric.bias_history]  # extract the shift
+        #center_x = [x[0][0] for x in distortion_metric.bias_history]  # extract the shift
+        #center_y = [x[3][1] for x in distortion_metric.bias_history]  # extract the shift
 
-        coef_1 = [x[0] for x in distortion_metric.bias_history]  # extract the shift
-        coef_2 = [x[1] for x in distortion_metric.bias_history]  # extract the shift
-        coef_3 = [x[2] for x in distortion_metric.bias_history]  # extract the shift
+        coef_1 = [x[0][0] for x in distortion_metric.bias_history1]  # extract the shift
+        coef_2 = [x[0][0] for x in distortion_metric.bias_history2]  # extract the shift
+        coef_3 = [x[0][0] for x in distortion_metric.bias_history3]  # extract the shift
 
-        plt.plot(center_x, label="x")
-        plt.plot(center_y, label="y")
+        #plt.plot(center_x, label="x")
+        #plt.plot(center_y, label="y")
         plt.plot(coef_1, label="1")
         plt.plot(coef_2, label="2")
         plt.plot(coef_3, label="3")
@@ -204,6 +225,8 @@ def __set_train_registration(model, value, target="registration"):
         model.layers[4].trainable = (not value)
         model.layers[5].trainable = (not value)
         model.layers[6].trainable = (not value)
+        model.layers[7].trainable = (not value)
+        model.layers[8].trainable = (not value)
     elif target == "all":
         model.layers[1].trainable = value
         model.layers[2].trainable = value
@@ -211,6 +234,8 @@ def __set_train_registration(model, value, target="registration"):
         model.layers[4].trainable = value
         model.layers[5].trainable = value
         model.layers[6].trainable = value
+        model.layers[7].trainable = value
+        model.layers[8].trainable = value
     elif target == "shift":
         model.layers[1].trainable = value
         model.layers[2].trainable = not value
@@ -218,13 +243,30 @@ def __set_train_registration(model, value, target="registration"):
         model.layers[4].trainable = not value
         model.layers[5].trainable = not value
         model.layers[6].trainable = not value
+        model.layers[7].trainable = not value
+        model.layers[8].trainable = not value
     elif target == "distortion":
         model.layers[1].trainable = not value
         model.layers[2].trainable = not value
         model.layers[3].trainable = not value
-        model.layers[4].trainable = value
-        model.layers[5].trainable = not value
-        model.layers[6].trainable = not value
+        if value == 1:
+            model.layers[4].trainable = value
+            model.layers[5].trainable = not value
+            model.layers[6].trainable = not value
+        if value == 2:
+            model.layers[4].trainable = not value
+            model.layers[5].trainable = value
+            model.layers[6].trainable = not value
+        if value == 4:
+            model.layers[4].trainable = not value
+            model.layers[5].trainable = not value
+            model.layers[6].trainable = value
+        if value == 7:
+            model.layers[4].trainable = value
+            model.layers[5].trainable = value
+            model.layers[6].trainable = value
+        model.layers[7].trainable = not value
+        model.layers[8].trainable = not value
 
 
 def __information_gain(coords,
@@ -305,15 +347,15 @@ def run(inputs,
     bias = layer_dict['ScaleLayer'].get_weights()
     Verbose.print("Scale: " + colored(str(bias[0]*config["layer_normalization"]["scale"] + 1), "green"), Verbose.always)
 
-    bias = layer_dict['RDistortionLayer'].get_weights()
-    Verbose.print("center: " + colored(str(bias[3]), "green"), Verbose.always)
-    u_bias = [x * config["layer_normalization"]["radial_distortion"] for x in bias[:3]]
-    exp_k1 = -u_bias[0]
-    exp_k2 = 3*u_bias[0]*u_bias[0] - u_bias[1]
-    exp_k3 = -12*u_bias[0]*u_bias[0]*u_bias[0] + 8*u_bias[0]*u_bias[1] - u_bias[2]
-    Verbose.print("coefs: " + colored(str(u_bias), "green"), Verbose.always)
-    Verbose.print("coefs: " + colored(str([exp_k1, exp_k2, exp_k3]), "green"), Verbose.always)
-
+    k1 = layer_dict['RDistortionLayer'].get_weights()[0][0] * config["layer_normalization"]["radial_distortion"]
+    k2 = layer_dict['RDistortionLayer2'].get_weights()[0][0] * config["layer_normalization"]["radial_distortion_2"]
+    k3 = layer_dict['RDistortionLayer3'].get_weights()[0][0] * config["layer_normalization"]["radial_distortion_3"]
+    exp_k1 = -k1
+    exp_k2 = 3*k1*k1 - k2
+    exp_k3 = -12*k1*k1*k1 + 8*k1*k2 - k3
+    Verbose.print("coefs computed: " + colored(str([k1, k2, k3]), "green"), Verbose.always)
+    Verbose.print("coefs inverse: " + colored(str([exp_k1, exp_k2, exp_k3]), "green"), Verbose.always)
+    bias = [k1, k2, k3]
     # bias = layer_dict['ShearLayer'].get_weights()
     # Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)
 
