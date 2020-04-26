@@ -42,7 +42,7 @@ def __train_networks(inputs, outputs, layers, training_set_size):
     # print('Adding dense layer linear, width =', 10)
     # layer = tf.keras.layers.Dense(10, activation='linear', name='Dense_linear')(layer)
     print('Adding dense layer, width =', outputs.shape[1])
-    output_layer = tf.keras.layers.Dense(outputs.shape[1], activation='relu', name='Output')(layer)
+    output_layer = tf.keras.layers.Dense(outputs.shape[1], activation='linear', name='Output')(layer)
 
     model = tf.keras.models.Model(inputs=input_layer, outputs=output_layer)
 
