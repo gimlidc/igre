@@ -71,8 +71,8 @@ def __train_networks(inputs,
     scale_layer = ScaleLayer(name='ScaleLayer')(shift_layer)
     rotation_layer = RotationLayer(name='RotationLayer')(scale_layer)
     radial_distortion_layer = RDistortionLayer(name='RDistortionLayer')(rotation_layer)
-    radial_distortion_layer_2 = RDistortionLayer(name='RDistortionLayer2')(radial_distortion_layer)
-    radial_distortion_layer_3 = RDistortionLayer(name='RDistortionLayer3')(radial_distortion_layer_2)
+    radial_distortion_layer_2 = RDistortionLayer2(name='RDistortionLayer2')(radial_distortion_layer)
+    radial_distortion_layer_3 = RDistortionLayer3(name='RDistortionLayer3')(radial_distortion_layer_2)
     # shear_layer = ShearLayer(name='ShearLayer')(rotation_layer)
     layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer_3)
 

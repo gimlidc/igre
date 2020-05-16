@@ -20,19 +20,27 @@ layer_normalization:
   shift: 2000
   scale: 0.1
   rotation: 0.1
-  radial_distortion: 1.2
-  radial_distortion_2: 3.5
-  radial_distortion_3: 0.04
+  radial_distortion: 1.
+  radial_distortion_2: 1.
+  radial_distortion_3: 0.1
 train:
   batch_size: 2048
   stages:
-    - type: dist_1
-      epochs: 200
     - type: dist_1_2
-      epochs: 200
-    - type: dist_2
-      epochs: 200
+      epochs: 100
+    - type: dist_1
+      epochs: 100
     - type: dist_2_2
+      epochs: 100
+    - type: dist_2
+      epochs: 100
+    - type: dist_1
+      epochs: 100
+    - type: dist_3_2
+      epochs: 100
+    - type: refine_dist_2
+      epochs: 50
+    - type: refine_dist
       epochs: 200
   use_gpu: false
   shift_learning_multi: 10 # to achieve different learning rate for shift and rotation

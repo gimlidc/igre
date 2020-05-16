@@ -99,8 +99,8 @@ def igre_test(conf, shift, output):
     #tform.set_rotation(0.)  # 0.05236 rad
     #tform.set_shift(shift)
 
-    k1 = -0.025
-    k2 = 0.0
+    k1 = -0.02
+    k2 = 0.005
     k3 = 0.0
     exp_k1 = -k1
     exp_k2 = 3 * k1 * k1 - k2
@@ -122,8 +122,17 @@ def igre_test(conf, shift, output):
                                   visible=visible)
 
     tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
-    tform_inv.set_distortion(0., 0., bias[0], bias[1], bias[2])
+    tform_inv.set_distortion(0., 0., bias[0], 0, 0)
     inputs_recreated = tform_inv.apply_distortion(inputs)
+
+    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    tform_inv.set_distortion(0., 0., 0, bias[1], 0)
+    inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
+
+    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    tform_inv.set_distortion(0., 0., 0, 0, bias[2])
+    inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
+
     diff_r = abs(indexes - inputs_recreated)
     displacement_r = np.sqrt(np.power(diff_r[:, 0], 2) + np.power(diff_r[:, 0], 2))
     displacement_r = displacement_r.reshape(400, 400)
