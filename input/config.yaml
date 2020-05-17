@@ -1,4 +1,4 @@
-matfile: 'vlasic-dataset.mat'
+matfile: 'sample_7.mat'
 verbose_level: 1
 crop:
   left_top:
@@ -16,6 +16,8 @@ output_dimensions:
   min: 27
   max: 27
 expected_max_px_misplacement: 15
+inside_part: 10
+outside_part: 5
 layer_normalization:
   shift: 2000
   scale: 0.1

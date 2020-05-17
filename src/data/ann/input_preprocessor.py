@@ -27,12 +27,18 @@ def training_batch_selection(train_set_size, input_dims):
     """
     all_data_indices = np.arange(input_dims[0]*input_dims[1])
     all_data_indices = all_data_indices.reshape(input_dims[:-1])
-    max_misplacement = int(np.floor(get_config()["expected_max_px_misplacement"]))
-    selection = all_data_indices[max_misplacement:-max_misplacement,
-                                 max_misplacement:-max_misplacement]
-    selection = selection.reshape(-1)
-    all_data_indices = all_data_indices.reshape(-1)
-    selection = [x for x in all_data_indices if x not in selection]
+    inside = int(np.floor(get_config()["inside_part"]))
+    outside = int(np.floor(get_config()["outside_part"]))
+
+    selection_exclude = all_data_indices[inside:-inside,
+                                         inside:-inside]
+    selection_exclude = selection_exclude.reshape(-1)
+
+    selection_include = all_data_indices[outside:-outside,
+                                         outside:-outside]
+    selection_include = selection_include.reshape(-1)
+
+    selection = [x for x in selection_include if x not in selection_exclude]
     selection = np.random.permutation(selection)
     selection = selection[:train_set_size]
 

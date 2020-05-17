@@ -99,9 +99,9 @@ def igre_test(conf, shift, output):
     #tform.set_rotation(0.)  # 0.05236 rad
     #tform.set_shift(shift)
 
-    k1 = -0.02
-    k2 = 0.005
-    k3 = 0.0
+    k1 = -0.021
+    k2 = 0.006
+    k3 = 0.001
     exp_k1 = -k1
     exp_k2 = 3 * k1 * k1 - k2
     exp_k3 = -12 * k1 * k1 * k1 + 8 * k1 * k2 - k3
