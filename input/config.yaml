@@ -1,11 +1,11 @@
-matfile: 'sample_7.mat'
+matfile: 'kiddo.mat'
 verbose_level: 1
 crop:
   left_top:
-    x: 0
-    y: 0
+    x: 400  # vertical
+    y: 200  # horizontal
   size:
-    width: 400
+    width: 600
     height: 400
 layers:
   - 1

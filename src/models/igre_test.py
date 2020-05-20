@@ -16,12 +16,12 @@ def data_crop(config, dataset):
         print("Data crop ... " + colored("YES", "green") + ":", Verbose.debug)
         print("\t["
               + str(config["crop"]["left_top"]["x"]) + ":"
-              + str(config["crop"]["left_top"]["x"] + config["crop"]["size"]["width"]) + ", "
+              + str(config["crop"]["left_top"]["x"] + config["crop"]["size"]["height"]) + ", "
               + str(config["crop"]["left_top"]["y"]) + ":"
-              + str(config["crop"]["left_top"]["y"] + config["crop"]["size"]["height"]) + ", :]", Verbose.debug)
+              + str(config["crop"]["left_top"]["y"] + config["crop"]["size"]["width"]) + ", :]", Verbose.debug)
         dataset = dataset[
-                  config["crop"]["left_top"]["x"]: (config["crop"]["left_top"]["x"] + config["crop"]["size"]["width"]),
-                  config["crop"]["left_top"]["y"]: (config["crop"]["left_top"]["y"] + config["crop"]["size"]["height"]),
+                  config["crop"]["left_top"]["x"]: (config["crop"]["left_top"]["x"] + config["crop"]["size"]["height"]),
+                  config["crop"]["left_top"]["y"]: (config["crop"]["left_top"]["y"] + config["crop"]["size"]["width"]),
                   :]
     else:
         print("Data crop: " + colored("NO", "red"), Verbose.debug)
@@ -76,6 +76,8 @@ def igre_test(conf, shift, output):
     Verbose.imshow(visible[:, :, 0])
 
     x = visible.shape[:-1]
+    x_size = x[0]
+    y_size = x[1]
     indexes = np.indices(x)
     indexes = indexes.reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
 
@@ -113,7 +115,7 @@ def igre_test(conf, shift, output):
     sanitycheck = tform_test.apply_distortion(inputs)
     diff = abs(indexes - sanitycheck)
     displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 0], 2))
-    displacement = displacement.reshape(400, 400)
+    displacement = displacement.reshape(x_size, y_size)
     mean = np.mean(displacement)
     Verbose.imshow(displacement)
 
@@ -135,7 +137,7 @@ def igre_test(conf, shift, output):
 
     diff_r = abs(indexes - inputs_recreated)
     displacement_r = np.sqrt(np.power(diff_r[:, 0], 2) + np.power(diff_r[:, 0], 2))
-    displacement_r = displacement_r.reshape(400, 400)
+    displacement_r = displacement_r.reshape(x_size, y_size)
     mean_r = np.mean(displacement_r)
     Verbose.imshow(displacement_r)
     print("coefs gt: " + str([exp_k1, exp_k2, exp_k3]))
