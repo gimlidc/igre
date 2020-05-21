@@ -2,11 +2,11 @@ matfile: 'kiddo.mat'
 verbose_level: 1
 crop:
   left_top:
-    x: 400  # vertical
-    y: 200  # horizontal
+    x: 679
+    y: 0
   size:
     width: 600
-    height: 400
+    height: 600
 layers:
   - 1
 input_dimensions:

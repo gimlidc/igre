@@ -7,6 +7,7 @@ import numpy as np
 import scipy.io
 from src.config.tools import init_config
 from src.registration.transformation import Transformation
+import src.config.image_info as ii
 
 ROOT_DIR = os.path.abspath(os.curdir)
 
@@ -64,6 +65,8 @@ def igre_test(conf, shift, output):
     # data normalization - ranged
     dataset = (dataset - np.min(dataset)) / (np.max(dataset) - np.min(dataset))
 
+    ii.init(dataset.shape[0], dataset.shape[1])
+
     Verbose.print("Dataset shape: " + str(dataset.shape), Verbose.debug)
     dataset = data_crop(config, dataset)
 
@@ -114,7 +117,7 @@ def igre_test(conf, shift, output):
     inputs = tform.apply_distortion(indexes)
     sanitycheck = tform_test.apply_distortion(inputs)
     diff = abs(indexes - sanitycheck)
-    displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 0], 2))
+    displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 1], 2))
     displacement = displacement.reshape(x_size, y_size)
     mean = np.mean(displacement)
     Verbose.imshow(displacement)
@@ -136,13 +139,14 @@ def igre_test(conf, shift, output):
     inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
 
     diff_r = abs(indexes - inputs_recreated)
-    displacement_r = np.sqrt(np.power(diff_r[:, 0], 2) + np.power(diff_r[:, 0], 2))
+    displacement_r = np.sqrt(np.power(diff_r[:, 0], 2) + np.power(diff_r[:, 1], 2))
     displacement_r = displacement_r.reshape(x_size, y_size)
     mean_r = np.mean(displacement_r)
     Verbose.imshow(displacement_r)
     print("coefs gt: " + str([exp_k1, exp_k2, exp_k3]))
     print("mean: " + str(float(mean)))
     print("mean_r: " + str(float(mean_r)))
+    print("max displacement:" + str(float(np.max(displacement_r))))
 
 
     output = None
