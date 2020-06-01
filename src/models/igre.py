@@ -58,13 +58,16 @@ def __train_networks(inputs,
     :return:
         trained model and training history
     """
+
     Verbose.print('Selecting ' + str(train_set_size) + ' samples randomly for use by algorithm.')
 
-    selection = training_batch_selection(train_set_size, reg_layer_data.shape)
+    selection = training_batch_selection(train_set_size, reg_layer_data)
     indexes = inputs[selection, :]
 
     # define model
     print('Adding input layer, width =', indexes.shape[1])
+
+    # TODO: revisit shear layer
     input_layer = tf.keras.layers.Input(shape=(indexes.shape[1],),
                                         dtype=tf.float32, name='InputLayer')
     shift_layer = ShiftLayer(name='ShiftLayer')(input_layer)
@@ -73,14 +76,9 @@ def __train_networks(inputs,
     radial_distortion_layer = RDistortionLayer(name='RDistortionLayer')(rotation_layer)
     radial_distortion_layer_2 = RDistortionLayer2(name='RDistortionLayer2')(radial_distortion_layer)
     radial_distortion_layer_3 = RDistortionLayer3(name='RDistortionLayer3')(radial_distortion_layer_2)
-    # shear_layer = ShearLayer(name='ShearLayer')(rotation_layer)
     layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer_3)
 
     # TODO: Add InformationGain layers here when necessary
-    # for layer_idx in range(len(layers)):
-    #     print('Adding dense layer, width =', layers[layer_idx])
-    #     layer = tf.keras.layers.Dense(layers[layer_idx],
-    #                                   activation='sigmoid', name='Dense' + str(layer_idx))(layer)
     print('Adding ReLU output layer, width =', outputs.shape[1])
     output_layer = tf.keras.layers.ReLU(max_value=1, name='Output', trainable=False)(layer)
     model = tf.keras.models.Model(inputs=input_layer, outputs=output_layer)
@@ -97,12 +95,13 @@ def __train_networks(inputs,
 
     # train model
     start_time = time()
-    # TODO: better names for stages
     tf.compat.v1.keras.backend.get_session().run(tf.compat.v1.global_variables_initializer())
+
     model.layers[1].set_weights([np.array([0, 0])])  # shift
     model.layers[2].set_weights([np.array([0, 0])])  # scale
     model.layers[3].set_weights([np.array([0])])     # rotation
-    # model.layers[4].set_weights([np.array([0])])  # shear_x
+
+    # TODO: better names for stages
     for stage in stages:
         if stage['type'] == 'blur':
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
@@ -156,6 +155,7 @@ def __train_networks(inputs,
         scale_metric = ScaleMetrics()
         rotation_metric = RotationMetrics()
         distortion_metric = DistortionMetrics()
+
         # mcp_save = ModelCheckpoint(MODEL_FILE,
         #                            save_best_only=True, monitor='val_loss', mode='min')
         # lr_reduction = ReduceLROnPlateau(monitor='val_loss', factor=0.9, patience=100, verbose=0, mode='auto',
@@ -163,7 +163,8 @@ def __train_networks(inputs,
 
         log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-        callbacks = [shift_metric, tensorboard_callback]
+        callbacks = [shift_metric, scale_metric, rotation_metric, distortion_metric, tensorboard_callback]
+
         history = model.fit(indexes,
                             output,
                             epochs=stage['epochs'],
@@ -173,24 +174,13 @@ def __train_networks(inputs,
                             batch_size=batch_size
                             )
 
-        shift_x = [x[0][0] for x in shift_metric.bias_history]  # extract the shift
-        shift_y = [x[0][1] for x in shift_metric.bias_history]  # extract the shift
+        coef_1 = [x[0][0] for x in distortion_metric.bias_history1]
+        coef_2 = [x[0][0] for x in distortion_metric.bias_history2]
+        coef_3 = [x[0][0] for x in distortion_metric.bias_history3]
 
-        #center_x = [x[0][0] for x in distortion_metric.bias_history]  # extract the shift
-        #center_y = [x[3][1] for x in distortion_metric.bias_history]  # extract the shift
-
-        coef_1 = [x[0][0] for x in distortion_metric.bias_history1]  # extract the shift
-        coef_2 = [x[0][0] for x in distortion_metric.bias_history2]  # extract the shift
-        coef_3 = [x[0][0] for x in distortion_metric.bias_history3]  # extract the shift
-
-        #plt.plot(center_x, label="x")
-        #plt.plot(center_y, label="y")
         plt.plot(coef_1, label="1")
         plt.plot(coef_2, label="2")
         plt.plot(coef_3, label="3")
-
-        #plt.plot(scale_x, label="sx")
-        #plt.plot(scale_y, label="sy")
 
         plt.title("Transformation")
         plt.legend()

@@ -4,7 +4,6 @@ from src.config.tools import get_config
 import src.config.image_info as ii
 
 
-
 class RDistortionLayer3(tf.keras.layers.Layer):
 
     def __init__(self, trainable=True, **kwargs):
@@ -15,9 +14,9 @@ class RDistortionLayer3(tf.keras.layers.Layer):
         tf.compat.v1.constant_initializer()
         # shift in pixels
         self.k3 = self.add_weight(name='multi', shape=(1,), dtype=tf.float32, initializer='zeros',
-                                      trainable=trainable,
-                                      #constraint=TanhConstraint()
-                                      )
+                                  trainable=trainable,
+                                  # constraint=TanhConstraint()
+                                  )
 
     def call(self, coords, **kwargs):
         # x' = x_c + (1 + c_1*r^2 + c_2*r^4 + c_3*r^6)*(x - x_c)
@@ -41,7 +40,8 @@ class RDistortionLayer3(tf.keras.layers.Layer):
         idx = tf.add(tf.constant([ii.image.c_x, ii.image.c_y], dtype=tf.float32),
                      tf.multiply(distortion,
                                  tf.subtract(coords_norm, tf.constant([ii.image.c_x, ii.image.c_y], dtype=tf.float32))))
-        coords_transformed = tf.subtract(tf.divide(tf.multiply(tf.add(idx, [1., 1.]), tf.constant([h, w], dtype=tf.float32)), 2.),
+        coords_transformed = tf.subtract(tf.divide(tf.multiply(tf.add(idx, [1., 1.]),
+                                                               tf.constant([h, w], dtype=tf.float32)), 2.),
                                          tf.constant([crop_h, crop_w], dtype=tf.float32))
 
         return coords_transformed

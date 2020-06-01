@@ -3,7 +3,7 @@ verbose_level: 1
 crop:
   left_top:
     x: 679
-    y: 0
+    y: 871
   size:
     width: 600
     height: 600
@@ -16,7 +16,7 @@ output_dimensions:
   min: 27
   max: 27
 expected_max_px_misplacement: 15
-inside_part: 10
+inside_part: 100
 outside_part: 5
 layer_normalization:
   shift: 2000
@@ -37,13 +37,23 @@ train:
     - type: dist_2
       epochs: 100
     - type: dist_1
-      epochs: 100
-    - type: dist_3_2
-      epochs: 100
-    - type: refine_dist_2
-      epochs: 50
-    - type: refine_dist
-      epochs: 200
+      epochs: 500
+    - type: dist_2
+      epochs: 500
+    - type: dist_3
+      epochs: 500
+    - type: dist_1
+      epochs: 500
+    - type: dist_2
+      epochs: 500
+    - type: dist_3
+      epochs: 5000
+    - type: dist_1
+      epochs: 500
+    - type: dist_2
+      epochs: 500
+    - type: dist_3
+      epochs: 5000
   use_gpu: false
   shift_learning_multi: 10 # to achieve different learning rate for shift and rotation
   shift_learning_multi_2: 700000

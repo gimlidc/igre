@@ -101,31 +101,56 @@ def igre_test(conf, shift, output):
     # coordinate transform up to perspective transform
     shift = (0., 0.)
     tform = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
-    #tform.set_rotation(0.)  # 0.05236 rad
-    #tform.set_shift(shift)
 
+    # Set radial distortion parameters
     k1 = -0.021
     k2 = 0.006
     k3 = 0.001
+    tform.set_distortion(0., 0., k1, k2, k3)
+
+    # calculate the best inverse radial distortion
+    tform_inverse_gt = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
     exp_k1 = -k1
     exp_k2 = 3 * k1 * k1 - k2
     exp_k3 = -12 * k1 * k1 * k1 + 8 * k1 * k2 - k3
-    tform.set_distortion(0., 0., k1, k2, k3)
-    tform_test = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
-    tform_test.set_distortion(0., 0., exp_k1, exp_k2, exp_k3)
+    tform_inverse_gt.set_distortion(0., 0., exp_k1, exp_k2, exp_k3)
 
     inputs = tform.apply_distortion(indexes)
-    sanitycheck = tform_test.apply_distortion(inputs)
+
+    # Calculate error of "ground truth" inverse
+
+    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    tform_inv.set_distortion(0., 0., exp_k1, 0, 0)
+    sanitycheck = tform_inv.apply_distortion(inputs)
+
+    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    tform_inv.set_distortion(0., 0., 0, exp_k2, 0)
+    sanitycheck = tform_inv.apply_distortion(sanitycheck)
+
+    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    tform_inv.set_distortion(0., 0., 0, 0, exp_k3)
+    sanitycheck = tform_inv.apply_distortion(sanitycheck)
+
+    # sanitycheck = tform_inverse_gt.apply_distortion(inputs)
     diff = abs(indexes - sanitycheck)
     displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 1], 2))
     displacement = displacement.reshape(x_size, y_size)
     mean = np.mean(displacement)
-    Verbose.imshow(displacement)
+    Verbose.imshow(displacement, Verbose.debug)
+
+
+    sanitycheck = tform_inverse_gt.apply_distortion(inputs)
+    diff = abs(indexes - sanitycheck)
+    displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 1], 2))
+    displacement = displacement.reshape(x_size, y_size)
+    mean = np.mean(displacement)
+    Verbose.imshow(displacement, Verbose.debug)
 
     bias, bias_history = igre.run(inputs,
                                   outputs,
                                   visible=visible)
 
+    # Given the architecture, the computed inverse is composed of 3 radial distortions
     tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
     tform_inv.set_distortion(0., 0., bias[0], 0, 0)
     inputs_recreated = tform_inv.apply_distortion(inputs)
@@ -138,15 +163,16 @@ def igre_test(conf, shift, output):
     tform_inv.set_distortion(0., 0., 0, 0, bias[2])
     inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
 
-    diff_r = abs(indexes - inputs_recreated)
-    displacement_r = np.sqrt(np.power(diff_r[:, 0], 2) + np.power(diff_r[:, 1], 2))
-    displacement_r = displacement_r.reshape(x_size, y_size)
-    mean_r = np.mean(displacement_r)
-    Verbose.imshow(displacement_r)
+    diff_recreated = abs(indexes - inputs_recreated)
+    displacement_recreated = np.sqrt(np.power(diff_recreated[:, 0], 2) + np.power(diff_recreated[:, 1], 2))
+    displacement_recreated = displacement_recreated.reshape(x_size, y_size)
+    displacement_recreated = displacement_recreated[5:-5, 5:-5]
+    mean_recreated = np.mean(displacement_recreated)
+    Verbose.imshow(displacement_recreated)
     print("coefs gt: " + str([exp_k1, exp_k2, exp_k3]))
     print("mean: " + str(float(mean)))
-    print("mean_r: " + str(float(mean_r)))
-    print("max displacement:" + str(float(np.max(displacement_r))))
+    print("mean_r: " + str(float(mean_recreated)))
+    print("max displacement:" + str(float(np.max(displacement_recreated))))
 
 
     output = None

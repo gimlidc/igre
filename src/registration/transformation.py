@@ -81,7 +81,8 @@ class Transformation:
             crop_w = config["crop"]["left_top"]["y"]
             crop_h = config["crop"]["left_top"]["x"]
 
-        image_size = np.amax(coords, axis=0)
+        # Compute standard radial distortion, on normalized coordinates [-1, 1],
+        # function of even powers of radii (distance pixel - center of distortion) and coefficients of the distortion
         coords_norm = np.divide(np.multiply(coords + [crop_h, crop_w], 2), [h, w]) - [1., 1.]
         radii = np.sqrt(np.power(coords_norm[:, 0] - ii.image.c_x, 2) + np.power(coords_norm[:, 1] - ii.image.c_y, 2))
         L = np.multiply(np.power(radii, 2), self.k1) + \
