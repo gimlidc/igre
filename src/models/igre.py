@@ -7,9 +7,10 @@ from src.tftools.rotation_layer import RotationLayer
 from src.tftools.radial_distortion_layer import RDistortionLayer
 from src.tftools.radial_distortion_layer_2 import RDistortionLayer2
 from src.tftools.radial_distortion_layer_3 import RDistortionLayer3
+from src.tftools.radial_distortion_complete import RDCompleteLayer
 from src.tftools.shear_layer import ShearLayer
 from src.tftools.idx2pixel_layer import Idx2PixelLayer, reset_visible
-from src.tftools.transform_metric import ShiftMetrics, ScaleMetrics, RotationMetrics, DistortionMetrics
+from src.tftools.transform_metric import ShiftMetrics, ScaleMetrics, RotationMetrics, DistortionMetrics, RDMetrics
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from src.logging.verbose import Verbose
 from src.tftools.optimizer_builder import build_optimizer
@@ -73,10 +74,11 @@ def __train_networks(inputs,
     shift_layer = ShiftLayer(name='ShiftLayer')(input_layer)
     scale_layer = ScaleLayer(name='ScaleLayer')(shift_layer)
     rotation_layer = RotationLayer(name='RotationLayer')(scale_layer)
-    radial_distortion_layer = RDistortionLayer(name='RDistortionLayer')(rotation_layer)
-    radial_distortion_layer_2 = RDistortionLayer2(name='RDistortionLayer2')(radial_distortion_layer)
-    radial_distortion_layer_3 = RDistortionLayer3(name='RDistortionLayer3')(radial_distortion_layer_2)
-    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer_3)
+    radial_distortion_layer = RDCompleteLayer(name='RDistortionLayer')(rotation_layer)
+    # radial_distortion_layer = RDistortionLayer(name='RDistortionLayer')(rotation_layer)
+    # radial_distortion_layer_2 = RDistortionLayer2(name='RDistortionLayer2')(radial_distortion_layer)
+    # radial_distortion_layer_3 = RDistortionLayer3(name='RDistortionLayer3')(radial_distortion_layer_2)
+    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer)
 
     # TODO: Add InformationGain layers here when necessary
     print('Adding ReLU output layer, width =', outputs.shape[1])
@@ -148,13 +150,22 @@ def __train_networks(inputs,
             output = outputs
             __set_train_registration(model, 7, target="distortion")
             model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
+        elif stage['type'] == 'dist_complete':
+            output = outputs
+            __set_train_registration(model, True, target="rd")
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        elif stage['type'] == 'dist_complete_2':
+            output = outputs
+            __set_train_registration(model, True, target="rd")
+            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
 
         reset_visible(output)
         output = output[selection, :]
         shift_metric = ShiftMetrics()
         scale_metric = ScaleMetrics()
         rotation_metric = RotationMetrics()
-        distortion_metric = DistortionMetrics()
+        # distortion_metric = DistortionMetrics()
+        distortion_metric = RDMetrics()
 
         # mcp_save = ModelCheckpoint(MODEL_FILE,
         #                            save_best_only=True, monitor='val_loss', mode='min')
@@ -174,10 +185,10 @@ def __train_networks(inputs,
                             batch_size=batch_size
                             )
 
-        coef_1 = [x[0][0] for x in distortion_metric.bias_history1]
-        coef_2 = [x[0][0] for x in distortion_metric.bias_history2]
-        coef_3 = [x[0][0] for x in distortion_metric.bias_history3]
-
+        config = get_config()
+        coef_1 = [x[0][0]*config["layer_normalization"]["radial_distortion"] for x in distortion_metric.bias_history]
+        coef_2 = [x[0][1]*config["layer_normalization"]["radial_distortion_2"] for x in distortion_metric.bias_history]
+        coef_3 = [x[0][2]*config["layer_normalization"]["radial_distortion_3"] for x in distortion_metric.bias_history]
         plt.plot(coef_1, label="1")
         plt.plot(coef_2, label="2")
         plt.plot(coef_3, label="3")
@@ -235,6 +246,13 @@ def __set_train_registration(model, value, target="registration"):
         model.layers[6].trainable = not value
         model.layers[7].trainable = not value
         model.layers[8].trainable = not value
+    elif target == "rd":
+        model.layers[1].trainable = not value
+        model.layers[2].trainable = not value
+        model.layers[3].trainable = not value
+        model.layers[4].trainable = value
+        model.layers[5].trainable = not value
+        model.layers[6].trainable = not value
     elif target == "distortion":
         model.layers[1].trainable = not value
         model.layers[2].trainable = not value
@@ -338,13 +356,13 @@ def run(inputs,
     Verbose.print("Scale: " + colored(str(bias[0]*config["layer_normalization"]["scale"] + 1), "green"), Verbose.always)
 
     k1 = layer_dict['RDistortionLayer'].get_weights()[0][0] * config["layer_normalization"]["radial_distortion"]
-    k2 = layer_dict['RDistortionLayer2'].get_weights()[0][0] * config["layer_normalization"]["radial_distortion_2"]
-    k3 = layer_dict['RDistortionLayer3'].get_weights()[0][0] * config["layer_normalization"]["radial_distortion_3"]
+    k2 = layer_dict['RDistortionLayer'].get_weights()[0][1] * config["layer_normalization"]["radial_distortion_2"]
+    k3 = layer_dict['RDistortionLayer'].get_weights()[0][2] * config["layer_normalization"]["radial_distortion_3"]
     exp_k1 = -k1
     exp_k2 = 3*k1*k1 - k2
     exp_k3 = -12*k1*k1*k1 + 8*k1*k2 - k3
     Verbose.print("coefs computed: " + colored(str([k1, k2, k3]), "green"), Verbose.always)
-    Verbose.print("coefs inverse: " + colored(str([exp_k1, exp_k2, exp_k3]), "green"), Verbose.always)
+    # Verbose.print("coefs inverse: " + colored(str([exp_k1, exp_k2, exp_k3]), "green"), Verbose.always)
     bias = [k1, k2, k3]
     # bias = layer_dict['ShearLayer'].get_weights()
     # Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)

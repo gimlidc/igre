@@ -119,30 +119,30 @@ def igre_test(conf, shift, output):
 
     # Calculate error of "ground truth" inverse
 
-    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
-    tform_inv.set_distortion(0., 0., exp_k1, 0, 0)
-    sanitycheck = tform_inv.apply_distortion(inputs)
-
-    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
-    tform_inv.set_distortion(0., 0., 0, exp_k2, 0)
-    sanitycheck = tform_inv.apply_distortion(sanitycheck)
-
-    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
-    tform_inv.set_distortion(0., 0., 0, 0, exp_k3)
-    sanitycheck = tform_inv.apply_distortion(sanitycheck)
+    # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    # tform_inv.set_distortion(0., 0., exp_k1, 0, 0)
+    # sanitycheck = tform_inv.apply_distortion(inputs)
+    #
+    # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    # tform_inv.set_distortion(0., 0., 0, exp_k2, 0)
+    # sanitycheck = tform_inv.apply_distortion(sanitycheck)
+    #
+    # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    # tform_inv.set_distortion(0., 0., 0, 0, exp_k3)
+    # sanitycheck = tform_inv.apply_distortion(sanitycheck)
 
     # sanitycheck = tform_inverse_gt.apply_distortion(inputs)
-    diff = abs(indexes - sanitycheck)
-    displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 1], 2))
-    displacement = displacement.reshape(x_size, y_size)
-    mean = np.mean(displacement)
-    Verbose.imshow(displacement, Verbose.debug)
-
+    # diff = abs(indexes - sanitycheck)
+    # displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 1], 2))
+    # displacement = displacement.reshape(x_size, y_size)
+    # mean = np.mean(displacement)
+    # Verbose.imshow(displacement, Verbose.debug)
 
     sanitycheck = tform_inverse_gt.apply_distortion(inputs)
     diff = abs(indexes - sanitycheck)
     displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 1], 2))
     displacement = displacement.reshape(x_size, y_size)
+    displacement = displacement[5:-5, 5:-5]
     mean = np.mean(displacement)
     Verbose.imshow(displacement, Verbose.debug)
 
@@ -152,16 +152,16 @@ def igre_test(conf, shift, output):
 
     # Given the architecture, the computed inverse is composed of 3 radial distortions
     tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
-    tform_inv.set_distortion(0., 0., bias[0], 0, 0)
+    tform_inv.set_distortion(0., 0., bias[0], bias[1], bias[2])
     inputs_recreated = tform_inv.apply_distortion(inputs)
 
-    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
-    tform_inv.set_distortion(0., 0., 0, bias[1], 0)
-    inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
-
-    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
-    tform_inv.set_distortion(0., 0., 0, 0, bias[2])
-    inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
+    # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    # tform_inv.set_distortion(0., 0., 0, bias[1], 0)
+    # inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
+    #
+    # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    # tform_inv.set_distortion(0., 0., 0, 0, bias[2])
+    # inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
 
     diff_recreated = abs(indexes - inputs_recreated)
     displacement_recreated = np.sqrt(np.power(diff_recreated[:, 0], 2) + np.power(diff_recreated[:, 1], 2))
@@ -170,9 +170,10 @@ def igre_test(conf, shift, output):
     mean_recreated = np.mean(displacement_recreated)
     Verbose.imshow(displacement_recreated)
     print("coefs gt: " + str([exp_k1, exp_k2, exp_k3]))
-    print("mean: " + str(float(mean)))
-    print("mean_r: " + str(float(mean_recreated)))
-    print("max displacement:" + str(float(np.max(displacement_recreated))))
+    print("mean_gt: " + str(float(mean)))
+    print("max_gt: " + str(float(np.max(displacement))))
+    print("mean: " + str(float(mean_recreated)))
+    print("max: " + str(float(np.max(displacement_recreated))))
 
 
     output = None
