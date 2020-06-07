@@ -117,7 +117,7 @@ if __name__ == "__main__":
     print("done")
 
     cores = multiprocessing.cpu_count()
-    pool = multiprocessing.Pool(8)
+    pool = multiprocessing.Pool(1)
 
     for run_conf in batch:
         pool.apply_async(igre_test, [run_conf, (args.x_shift,
