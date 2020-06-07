@@ -4,12 +4,13 @@ from time import time
 from src.tftools.shift_layer import ShiftLayer
 from src.tftools.scale_layer import ScaleLayer
 from src.tftools.rotation_layer import RotationLayer
-from src.tftools.radial_distortion_layer import RDistortionLayer
-from src.tftools.radial_distortion_layer_2 import RDistortionLayer2
-from src.tftools.radial_distortion_layer_3 import RDistortionLayer3
+# from src.tftools.radial_distortion_layer import RDistortionLayer
+# from src.tftools.radial_distortion_layer_2 import RDistortionLayer2
+# from src.tftools.radial_distortion_layer_3 import RDistortionLayer3
 from src.tftools.radial_distortion_complete import RDCompleteLayer
-from src.tftools.shear_layer import ShearLayer
+# from src.tftools.shear_layer import ShearLayer
 from src.tftools.idx2pixel_layer import Idx2PixelLayer, reset_visible
+from src.tftools.idx2pixel_layer_bc import Idx2PixelBCLayer, reset_visible
 from src.tftools.transform_metric import ShiftMetrics, ScaleMetrics, RotationMetrics, DistortionMetrics, RDMetrics
 from tensorflow.keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
 from src.logging.verbose import Verbose
@@ -78,7 +79,7 @@ def __train_networks(inputs,
     # radial_distortion_layer = RDistortionLayer(name='RDistortionLayer')(rotation_layer)
     # radial_distortion_layer_2 = RDistortionLayer2(name='RDistortionLayer2')(radial_distortion_layer)
     # radial_distortion_layer_3 = RDistortionLayer3(name='RDistortionLayer3')(radial_distortion_layer_2)
-    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer)
+    layer = Idx2PixelBCLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer)
 
     # TODO: Add InformationGain layers here when necessary
     print('Adding ReLU output layer, width =', outputs.shape[1])
@@ -204,10 +205,17 @@ def __train_networks(inputs,
     print("Total time {:.4f}'s".format(elapsed_time))
 
     # calculate gain and save best model so far
+    # File "C:\Anaconda\envs\igre\lib\site-packages\tensorflow\python\keras\engine\training.py", line 1078, in predict
+    #     callbacks=callbacks)
+    #   File "C:\Anaconda\envs\igre\lib\site-packages\tensorflow\python\keras\engine\training_arrays.py", line 370, in model_iteration
+    #     aggregator.aggregate(batch_outs, batch_start, batch_end)
+    #   File "C:\Anaconda\envs\igre\lib\site-packages\tensorflow\python\keras\engine\training_utils.py", line 169, in aggregate
+    #     self.results[i][batch_start:batch_end] = batch_out
+    # ValueError: could not broadcast input array from shape (212,212) into shape (212,2048)
     gain = abs(outputs[selection, :] - model.predict(indexes, batch_size=batch_size)) / (outputs.shape[0] *
                                                                                          outputs.shape[1])
-    information_gain_max = gain.flatten().max()
-    print('Gain: {:1.4e}'.format(information_gain_max))
+    # information_gain_max = gain.flatten().max()
+    # print('Gain: {:1.4e}'.format(information_gain_max))
 
     return model, history, shift_metric.bias_history
 
