@@ -2,9 +2,6 @@ import tensorflow as tf
 from src.tftools.custom_constraint import TanhConstraint
 from src.config.tools import get_config
 
-shift_multi = 2000.
-# hadles shift +- 20
-
 
 class ShiftLayer(tf.keras.layers.Layer):
 
@@ -16,7 +13,7 @@ class ShiftLayer(tf.keras.layers.Layer):
         tf.compat.v1.constant_initializer()
         # shift in pixels
         self.shift = self.add_weight(name='multi', shape=(2,), dtype=tf.float32, initializer='zeros',
-                                     trainable=True,
+                                     trainable=trainable,
                                      constraint=TanhConstraint()
                                      )
 
@@ -24,8 +21,5 @@ class ShiftLayer(tf.keras.layers.Layer):
         # [x',y'] = [x + c_x, y + c_y]
         config = get_config()
         idx = tf.cast(coords, tf.float32)
-        idx = tf.add(idx, tf.multiply((self.shift), config["layer_normalization"]["shift"]))
+        idx = tf.add(idx, tf.multiply(self.shift, config["layer_normalization"]["shift"]))
         return idx
-
-    def set_trainable(self, value):
-        self.shift._trainable = value

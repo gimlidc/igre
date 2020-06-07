@@ -32,8 +32,10 @@ class Verbose:
         if level <= verbose_level:
             if (len(a.shape) > 2) and a.shape[2] == 1:
                 plt.imshow(a.reshape(a.shape[0], a.shape[1]), cmap='gray')
-            else:
+            elif len(a.shape) == 2:
                 plt.imshow(a, cmap='gray')
+            else:
+                plt.imshow(a[:,:,:3])
             plt.show()
 
     @staticmethod

@@ -12,12 +12,15 @@ from src.logging.verbose import Verbose
 from src.tftools.optimizer_builder import build_optimizer
 from src.config.tools import get_config, get_or_default
 import numpy as np
+import cv2
 from termcolor import colored
 from src.data.ann.input_preprocessor import training_batch_selection, blur_preprocessing
 from src.tftools.optimizer_builder import build_refining_optimizer
+import yaml
+from src.config.tools import init_config
 
 MODEL_FILE = "best_model.tmp.h5"
-
+tf.keras.utils.Progbar(target=None, width=100)
 
 def __train_networks(inputs,
                      outputs,
@@ -108,16 +111,19 @@ def __train_networks(inputs,
         if stage['type'] == 'blur':
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
             __set_train_registration(model, True)
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
         elif stage['type'] == 'refine':
-            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
             output = outputs
-            __set_train_registration(model, True)
+            __set_train_registration(model, True, target="shift")
+            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
         elif stage['type'] == 'polish':
             output = outputs
-            __set_train_registration(model, True)
+            __set_train_registration(model, True, target="all")
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
         elif stage["type"] == "mutual_init":
             __set_train_registration(model, False)
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['blur'])
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
 
         reset_visible(output)
         output = output[selection, :]
@@ -152,21 +158,40 @@ def __train_networks(inputs,
     information_gain_max = gain.flatten().max()
     print('Gain: {:1.4e}'.format(information_gain_max))
 
+    Verbose.plot([float(step[0][0]) for step in shift_metric.bias_history])
+    Verbose.plot([float(step[0][1]) for step in shift_metric.bias_history])
+
     return model, history, bias_history
 
 
-def __set_train_registration(model, value):
+def __set_train_registration(model, value, target="registration"):
     """
     For various stages of training registration should not be trainable (we are looking for base mutual setup).
     This method allows enabling/disabling of trainability of first three layers of ANN.
     :param model: ANN
     :param value: boolean
     """
-    model.layers[1].set_trainable(value)
-    model.layers[2].set_trainable(value)
-    model.layers[3].set_trainable(value)
-    model.layers[5].trainable = (not value)
-    model.layers[6].trainable = (not value)
+    if target == "registration":
+        model.layers[1].trainable = value
+        model.layers[2].trainable = value
+        model.layers[3].trainable = value
+        model.layers[5].trainable = (not value)
+        model.layers[6].trainable = (not value)
+        model.layers[7].trainable = (not value)
+    elif target == "all":
+        model.layers[1].trainable = value
+        model.layers[2].trainable = value
+        model.layers[3].trainable = value
+        model.layers[5].trainable = value
+        model.layers[6].trainable = value
+        model.layers[7].trainable = value
+    elif target == "shift":
+        model.layers[1].trainable = value
+        model.layers[2].trainable = not value
+        model.layers[3].trainable = not value
+        model.layers[5].trainable = not value
+        model.layers[6].trainable = not value
+        model.layers[7].trainable = not value
 
 
 def __information_gain(coords,
@@ -248,5 +273,24 @@ def run(inputs,
     # Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)
 
     Verbose.imshow(extrapolation)
+    Verbose.imshow(outputs)
+    Verbose.imshow(ig)
 
     return bias, bias_history
+
+
+if __name__ == "__main__":
+    with open("input/config.yaml", "rt", encoding='utf-8') as config_file:
+        config = yaml.load(config_file)
+
+    init_config(config)
+
+    l = cv2.imread("/Users/gimli/Qsync/datasets/Nightwatch/vis-L.png") / 255.0
+    pbl = cv2.cvtColor(cv2.imread("/Users/gimli/Qsync/datasets/Nightwatch/pbl.png"), cv2.COLOR_BGR2GRAY) / 255.0
+    x = l.shape[:-1]
+    # Create [x,y] pairs as the input for ANN
+    indexes = np.indices(x)
+    indexes = indexes.transpose().reshape((l.shape[0] * l.shape[1], 2)).astype(np.float32)
+
+    bias = run(indexes, pbl.reshape((pbl.shape[0], pbl.shape[1], 1)), l[:,:,0].reshape(l.shape[0], l.shape[1], 1))
+    print(bias)

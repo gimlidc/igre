@@ -19,7 +19,7 @@ class ScaleLayer(tf.keras.layers.Layer):
         # scale in x and in y
         self.scale = self.add_weight(name='multi', shape=(2,), dtype=tf.float32, initializer='zeros',
                                      trainable=True,
-                                     # constraint=MinMaxConstraint(-1., 1.)  # DiminishLearningRate(1000.))
+                                     constraint=MinMaxConstraint(0.9, 1.1)  # DiminishLearningRate(1000.))
                                      )
 
     def call(self, coords, **kwargs):
@@ -28,6 +28,3 @@ class ScaleLayer(tf.keras.layers.Layer):
         idx = tf.multiply(idx, tf.add(tf.multiply(self.scale, config["layer_normalization"]["scale"]), scale_base))
 
         return idx
-
-    def set_trainable(self, value):
-        self.scale._trainable = value
