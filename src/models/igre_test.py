@@ -7,6 +7,7 @@ import numpy as np
 import scipy.io
 from src.config.tools import init_config
 from src.registration.transformation import Transformation
+import src.config.image_info as ii
 
 ROOT_DIR = os.path.abspath(os.curdir)
 
@@ -16,9 +17,9 @@ def data_crop(config, dataset):
         print("Data crop ... " + colored("YES", "green") + ":", Verbose.debug)
         print("\t["
               + str(config["crop"]["left_top"]["x"]) + ":"
-              + str(config["crop"]["left_top"]["x"] + config["crop"]["size"]["width"]) + ", "
+              + str(config["crop"]["left_top"]["x"] + config["crop"]["size"]["height"]) + ", "
               + str(config["crop"]["left_top"]["y"]) + ":"
-              + str(config["crop"]["left_top"]["y"] + config["crop"]["size"]["height"]) + ", :]", Verbose.debug)
+              + str(config["crop"]["left_top"]["y"] + config["crop"]["size"]["width"]) + ", :]", Verbose.debug)
         dataset = dataset[
                   config["crop"]["left_top"]["x"]: (config["crop"]["left_top"]["x"] + config["crop"]["size"]["height"]),
                   config["crop"]["left_top"]["y"]: (config["crop"]["left_top"]["y"] + config["crop"]["size"]["width"]),
@@ -65,6 +66,8 @@ def igre_test(conf, transformation, output):
     # data normalization - ranged
     dataset = (dataset - np.min(dataset)) / (np.max(dataset) - np.min(dataset))
 
+    ii.init(dataset.shape[0], dataset.shape[1])
+
     # Crop image according to config
     Verbose.print("Dataset shape: " + str(dataset.shape), Verbose.debug)
     dataset = data_crop(config, dataset)
@@ -78,6 +81,9 @@ def igre_test(conf, transformation, output):
     Verbose.imshow(visible[:, :, 0])
 
     x = visible.shape[:-1]
+    x_size = x[0]
+    y_size = x[1]
+
     # Create [x,y] pairs as the input for ANN
     indexes = np.indices(x)
     indexes = indexes.reshape((len(visible.shape[:-1]), -1)).transpose().astype(np.float32)
@@ -98,17 +104,84 @@ def igre_test(conf, transformation, output):
 
     Verbose.print("\nCalling " + colored("IGRE\n", "green") + "...")
 
-    # Setup transformation:
-    shift = (-transformation[0], -transformation[1])
-    tform = Transformation(a=(transformation[3], 0.0), b=(0.0, transformation[4],), c=shift)
-    tform.set_rotation(transformation[2])  # 0.05236 rad
+    # coordinate transform up to perspective transform
+    shift = (0., 0.)
+    tform = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
 
-    Verbose.imshow(tform.tform_img(visible))
+    # Set radial distortion parameters
+    k1 = -0.021
+    k2 = 0.006
+    k3 = 0.001
+    tform.set_distortion(0., 0., k1, k2, k3)
 
-    inputs = tform.transform(indexes)
+    # calculate the best inverse radial distortion
+    tform_inverse_gt = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    exp_k1 = -k1
+    exp_k2 = 3 * k1 * k1 - k2
+    exp_k3 = -12 * k1 * k1 * k1 + 8 * k1 * k2 - k3
+    tform_inverse_gt.set_distortion(0., 0., exp_k1, exp_k2, exp_k3)
+
+    inputs = tform.apply_distortion(indexes)
+
+    # Calculate error of "ground truth" inverse
+
+    # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    # tform_inv.set_distortion(0., 0., exp_k1, 0, 0)
+    # sanitycheck = tform_inv.apply_distortion(inputs)
+    #
+    # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    # tform_inv.set_distortion(0., 0., 0, exp_k2, 0)
+    # sanitycheck = tform_inv.apply_distortion(sanitycheck)
+    #
+    # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    # tform_inv.set_distortion(0., 0., 0, 0, exp_k3)
+    # sanitycheck = tform_inv.apply_distortion(sanitycheck)
+
+    # sanitycheck = tform_inverse_gt.apply_distortion(inputs)
+    # diff = abs(indexes - sanitycheck)
+    # displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 1], 2))
+    # displacement = displacement.reshape(x_size, y_size)
+    # mean = np.mean(displacement)
+    # Verbose.imshow(displacement, Verbose.debug)
+
+    sanitycheck = tform_inverse_gt.apply_distortion(inputs)
+    diff = abs(indexes - sanitycheck)
+    displacement = np.sqrt(np.power(diff[:, 0], 2) + np.power(diff[:, 1], 2))
+    displacement = displacement.reshape(x_size, y_size)
+    displacement = displacement[5:-5, 5:-5]
+    mean = np.mean(displacement)
+    Verbose.imshow(displacement, Verbose.debug)
+
     bias, bias_history = igre.run(inputs,
                                   outputs,
                                   visible=visible)
+
+    # Given the architecture, the computed inverse is composed of 3 radial distortions
+    tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    tform_inv.set_distortion(0., 0., bias[0], bias[1], bias[2])
+    inputs_recreated = tform_inv.apply_distortion(inputs)
+
+    # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    # tform_inv.set_distortion(0., 0., 0, bias[1], 0)
+    # inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
+    #
+    # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
+    # tform_inv.set_distortion(0., 0., 0, 0, bias[2])
+    # inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
+
+    diff_recreated = abs(indexes - inputs_recreated)
+    displacement_recreated = np.sqrt(np.power(diff_recreated[:, 0], 2) + np.power(diff_recreated[:, 1], 2))
+    displacement_recreated = displacement_recreated.reshape(x_size, y_size)
+    displacement_recreated = displacement_recreated[5:-5, 5:-5]
+    mean_recreated = np.mean(displacement_recreated)
+    Verbose.imshow(displacement_recreated)
+    print("coefs gt: " + str([exp_k1, exp_k2, exp_k3]))
+    print("mean_gt: " + str(float(mean)))
+    print("max_gt: " + str(float(np.max(displacement))))
+    print("mean: " + str(float(mean_recreated)))
+    print("max: " + str(float(np.max(displacement_recreated))))
+
+    output = None
 
     if output is not None:
         with open(output, 'w') as ofile:

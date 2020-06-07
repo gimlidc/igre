@@ -5,7 +5,7 @@ from src.config.tools import get_config
 
 class ShiftLayer(tf.keras.layers.Layer):
 
-    def __init__(self, trainable=True, **kwargs):
+    def __init__(self, trainable=False, **kwargs):
         """
         :param visible: one dimension of visible image (for this dimension [x,y] will be computed)
         """

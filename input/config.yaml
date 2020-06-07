@@ -1,12 +1,12 @@
-matfile: 'vlasic-dataset.mat'
+matfile: 'kiddo.mat'
 verbose_level: 1
 crop:
   left_top:
-    x: 0
-    y: 0
+    x: 679
+    y: 871
   size:
-    width: 400
-    height: 400
+    width: 600
+    height: 600
 layers:
   - 25
   - 25
@@ -14,56 +14,45 @@ input_dimensions:
   min: 13
   max: 13 # maximum is included into selection
 output_dimensions:
-  min: 20
-  max: 20
-expected_max_px_misplacement: 25
+  min: 27
+  max: 27
+expected_max_px_misplacement: 15
+inside_part: 100
+outside_part: 20
 layer_normalization:
   shift: 1000
   scale: 0.1
-  rotation: 0.2
+  rotation: 0.1
+  radial_distortion: 1.
+  radial_distortion_2: 0.1
+  radial_distortion_3: 0.04
 train:
   batch_size: 2048
   stages:
-#    - type: mutual_init
-#      blur: 121 # this is blur for the init stage
-#      epochs: 50
-#    - type: blur
-#      params: 81
-#      epochs: 200
-#    - type: mutual_init
-#      blur: 51 # this is blur for the init stage
-#      epochs: 100
-#    - type: blur
-#      params: 31
-#      epochs: 100
-#    - type: mutual_init
-#      blur: 15 # this is blur for the init stage
-#      epochs: 100
-#    - type: blur
-#      params: 9
-#      epochs: 100
-    - type: mutual_init
-      blur: 5 # this is blur for the init stage
-      epochs: 200
-    - type: blur
-      params: 3
-      epochs: 100
-    - type: mutual_init
-      blur: 3 # this is blur for the init stage
-      epochs: 300
-    - type: polish
-      epochs: 100
-    - type: refine
-      epochs: 100
+    - type: dist_complete_2
+      epochs: 1000
+    - type: dist_complete
+      epochs: 1000
+    - type: dist_complete_2
+      epochs: 1000
+    - type: dist_complete
+      epochs: 1000
+    - type: dist_complete_2
+      epochs: 1000
+    - type: dist_complete
+      epochs: 1000
+    - type: dist_complete_2
+      epochs: 2000
+    - type: dist_complete
+      epochs: 2000
   use_gpu: false
   optimizer:
     family: "adam"
-    learning_rate: 0.0005
+    learning_rate: 0.0000035
     beta1: 0.9
     beta2: 0.8
   refiner:
     family: "SGD"
     learning_rate: 0.001
-    decay: 0.01
-    momentum: 0.5
-
+    decay: 0.001
+    momentum: 0.9
