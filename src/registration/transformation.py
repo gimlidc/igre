@@ -51,7 +51,7 @@ class Transformation:
         :return: list
             new 2D planar coordinates
         """
-        if len(coordinates)//2 == 1:
+        if len(coordinates) // 2 == 1:
             coords = np.reshape(np.asarray(coordinates), (1, 2))
         else:
             coords = np.asarray(coordinates)
@@ -72,7 +72,7 @@ class Transformation:
         self.k3 = k3
 
     def apply_distortion(self, coordinates):
-        if len(coordinates)//2 == 1:
+        if len(coordinates) // 2 == 1:
             coords = np.reshape(np.asarray(coordinates), (1, 2))
         else:
             coords = np.asarray(coordinates)
@@ -103,13 +103,14 @@ class Transformation:
         return transformed_coordinates
 
     def __str__(self):
-        return str(self.a[0]) + "x + " + str(self.b[0]) + "y + " + str(self.c[0]) + "\t" + \
-               str(self.a[1]) + "x + " + str(self.b[1]) + "y + " + str(self.c[1]) + "\n" + \
-               "-----------------\t-----------------\n" + \
-               str(self.e[0]) + "x + " + str(self.e[0]) + "y + " + " 1\t" + \
-               str(self.e[1]) + "x + " + str(self.e[1]) + "y + " + " 1" + \
-               "-----------------\t-----------------\n" + \
-               "x - " + str(self.cx) + "(1 + " + str(self.k1) + "r^2 + " + str(self.k2) + \
-               "r^4 + " + str(self.k3) + "r^6)\n" + \
-               "y - " + str(self.cy) + "(1 + " + str(self.k1) + "r^2 + " + str(self.k2) + \
-               "r^4 + " + str(self.k3) + "r^6)\n"
+        return \
+            # str(self.a[0]) + "x + " + str(self.b[0]) + "y + " + str(self.c[0]) + "\t" + \
+        #    str(self.a[1]) + "x + " + str(self.b[1]) + "y + " + str(self.c[1]) + "\n" + \
+        #    "-----------------\t-----------------\n" + \
+        #    str(self.e[0]) + "x + " + str(self.e[0]) + "y + " + " 1\t" + \
+        #    str(self.e[1]) + "x + " + str(self.e[1]) + "y + " + " 1" + \
+        #    "-----------------\t-----------------\n" + \
+        "x - " + str(self.cx) + "(1 + " + str(self.k1) + "r^2 + " + str(self.k2) + \
+        "r^4 + " + str(self.k3) + "r^6)\n" + \
+        "y - " + str(self.cy) + "(1 + " + str(self.k1) + "r^2 + " + str(self.k2) + \
+        "r^4 + " + str(self.k3) + "r^6)\n"

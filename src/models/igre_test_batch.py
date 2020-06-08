@@ -5,7 +5,7 @@ from copy import deepcopy
 import os
 import multiprocessing
 
-OUT_FILENAME_FORMAT = "t_{SHIFT_X}_{SHIFT_Y}_{ROTATION}_{SCALE_X}_{SCALE_Y}" \
+OUT_FILENAME_FORMAT = "t_{C_X}_{C_Y}_{K1}_{K2}_{K3}" \
                       + "_modstep{MODALITY_DIFF}_sample{SAMPLE}_{CUSTOM}.result"
 
 
@@ -16,11 +16,11 @@ def __create_batch(config, transformation, custom):
     """
     template = deepcopy(config)
     del template["batch"]
-    template["output"] = OUT_FILENAME_FORMAT.replace("{SHIFT_X}", str(transformation[0])) \
-        .replace("{SHIFT_Y}", str(transformation[1])) \
-        .replace("{ROTATION}", str(transformation[2])) \
-        .replace("{SCALE_X}", str(transformation[3])) \
-        .replace("{SCALE_Y}", str(transformation[4]))
+    template["output"] = OUT_FILENAME_FORMAT.replace("{C_X}", str(transformation[0])) \
+        .replace("{C_Y}", str(transformation[1])) \
+        .replace("{K1}", str(transformation[2])) \
+        .replace("{K2}", str(transformation[3])) \
+        .replace("{K3}", str(transformation[4]))
     batch01 = []
     param = "output_dimension"
     for value in np.arange(config["batch"][param]["min"],
@@ -104,27 +104,63 @@ if __name__ == "__main__":
         default=0,
         help="y-scale of the input data",
     )
+    parser.add_argument(
+        "-k",
+        "--k1",
+        type=float,
+        default=0,
+        help="radial distortion applied on input image (1 + K1 * r^2 + k2 * r^4 + k3 * r^6"
+    )
+    parser.add_argument(
+        "-l",
+        "--k2",
+        type=float,
+        default=0,
+        help="radial distortion applied on input image (1 + k1 * r^2 + K2 * r^4 + k3 * r^6"
+    )
+    parser.add_argument(
+        "-m",
+        "--k3",
+        type=float,
+        default=0,
+        help="radial distortion applied on input image (1 + k1 * r^2 + k2 * r^4 + K3 * r^6"
+    )
+    parser.add_argument(
+        "-c",
+        "--cx",
+        type=float,
+        default=0,
+        help="Center of radial distortion in coordinates of the input image",
+    )
+    parser.add_argument(
+        "-y",
+        "--cy",
+        type=float,
+        default=0,
+        help="Center of radial distortion in coordinates of the input image",
+    )
+
     args = parser.parse_args()
     if not os.path.exists(args.batch_dir):
         os.makedirs(args.batch_dir)
     with open(args.config) as config_file:
         batch_config = yaml.load(config_file, Loader=yaml.FullLoader)
-    batch = __create_batch(batch_config, (args.x_shift,
-                                          args.y_shift,
-                                          args.rotation,
-                                          args.x_scale,
-                                          args.y_scale), args.repeats)
+    batch = __create_batch(batch_config, (args.cx,
+                                          args.cy,
+                                          args.k1,
+                                          args.k2,
+                                          args.k3), args.repeats)
     print("done")
 
     cores = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(1)
 
     for run_conf in batch:
-        pool.apply_async(igre_test, [run_conf, (args.x_shift,
-                                                args.y_shift,
-                                                args.rotation,
-                                                args.x_scale,
-                                                args.y_scale),
+        pool.apply_async(igre_test, [run_conf, (args.cx,
+                                                args.cy,
+                                                args.k1,
+                                                args.k2,
+                                                args.k3),
                                      os.path.join(args.batch_dir, run_conf["output"])])
 
     pool.close()

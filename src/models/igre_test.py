@@ -109,17 +109,18 @@ def igre_test(conf, transformation, output):
     tform = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
 
     # Set radial distortion parameters
-    k1 = -0.021
-    k2 = 0.006
-    k3 = 0.001
-    tform.set_distortion(0., 0., k1, k2, k3)
+    k1 = transformation[2]
+    k2 = transformation[3]
+    k3 = transformation[4]
+    tform.set_distortion(transformation[0], transformation[1], k1, k2, k3)
 
     # calculate the best inverse radial distortion
     tform_inverse_gt = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
     exp_k1 = -k1
     exp_k2 = 3 * k1 * k1 - k2
     exp_k3 = -12 * k1 * k1 * k1 + 8 * k1 * k2 - k3
-    tform_inverse_gt.set_distortion(0., 0., exp_k1, exp_k2, exp_k3)
+    # FIXME: We are not sure, but we are lazy for now, to evaluate that cx and inverse cx correspond ...
+    tform_inverse_gt.set_distortion(transformation[0], transformation[1], exp_k1, exp_k2, exp_k3)
 
     inputs = tform.apply_distortion(indexes)
 
@@ -158,7 +159,7 @@ def igre_test(conf, transformation, output):
 
     # Given the architecture, the computed inverse is composed of 3 radial distortions
     tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
-    tform_inv.set_distortion(0., 0., bias[0], bias[1], bias[2])
+    tform_inv.set_distortion(transformation[0], transformation[1], bias[0], bias[1], bias[2])
     inputs_recreated = tform_inv.apply_distortion(inputs)
 
     # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
@@ -186,21 +187,16 @@ def igre_test(conf, transformation, output):
     if output is not None:
         with open(output, 'w') as ofile:
             config["bias"] = {
-                "x": float(bias[0][0][0] * config["layer_normalization"]["shift"]),
-                "y": float(bias[0][0][1] * config["layer_normalization"]["shift"]),
-                "rotation": float(bias[1][0][0] * config["layer_normalization"]["rotation"] * 180 / np.pi),
-                "scale_x": float(bias[2][0][0] * config["layer_normalization"]["scale"] + 1),
-                "scale_y": float(bias[2][0][1] * config["layer_normalization"]["scale"] + 1)
+                # "x": float(bias[0][0][0] * config["layer_normalization"]["shift"]),
+                # "y": float(bias[0][0][1] * config["layer_normalization"]["shift"]),
+                # "rotation": float(bias[1][0][0] * config["layer_normalization"]["rotation"] * 180 / np.pi),
+                # "scale_x": float(bias[2][0][0] * config["layer_normalization"]["scale"] + 1),
+                # "scale_y": float(bias[2][0][1] * config["layer_normalization"]["scale"] + 1),
+                "k1": float(bias[0][0][0]),
+                "k2": float(bias[1][0][0]),
+                "k3": float(bias[2][0][0])
             }
             if "print_bias_history" in config["train"]:
-                bias_history["shift_x"] = bias_history["shift_x"] * config["layer_normalization"]["shift"]
-                bias_history["shift_y"] = bias_history["shift_y"] * config["layer_normalization"]["shift"]
-                bias_history["rotation"] = [rot * float(config["layer_normalization"]["rotation"] * 180 / np.pi)
-                                            for rot in bias_history["rotation"]]
-                bias_history["scale_x"] = [(scale * config["layer_normalization"]["scale"]) + 1
-                                           for scale in bias_history["scale_x"]]
-                bias_history["scale_y"] = [(scale * config["layer_normalization"]["scale"]) + 1
-                                           for scale in bias_history["scale_y"]]
                 config["bias_history"] = bias_history
 
             ofile.write(yaml.dump(config))
@@ -257,6 +253,41 @@ if __name__ == "__main__":
         "--output",
         type=str,
         help="yaml output file, where collected data will be placed",
+    )
+    parser.add_argument(
+        "-k",
+        "--k1",
+        type=float,
+        default=0,
+        help="radial distortion applied on input image (1 + K1 * r^2 + k2 * r^4 + k3 * r^6"
+    )
+    parser.add_argument(
+        "-l",
+        "--k2",
+        type=float,
+        default=0,
+        help="radial distortion applied on input image (1 + k1 * r^2 + K2 * r^4 + k3 * r^6"
+    )
+    parser.add_argument(
+        "-m",
+        "--k3",
+        type=float,
+        default=0,
+        help="radial distortion applied on input image (1 + k1 * r^2 + k2 * r^4 + K3 * r^6"
+    )
+    parser.add_argument(
+        "-e",
+        "--cx",
+        type=float,
+        default=0,
+        help="Center of radial distortion in coordinates of the input image",
+    )
+    parser.add_argument(
+        "-f",
+        "--cy",
+        type=float,
+        default=0,
+        help="Center of radial distortion in coordinates of the input image",
     )
     args = parser.parse_args()
     igre_test(args.config, (args.x_shift, args.y_shift, args.rotation, args.x_scale, args.y_scale), args.output)
