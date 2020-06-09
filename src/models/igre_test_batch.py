@@ -114,8 +114,8 @@ if __name__ == "__main__":
                            args.repeats)
     print("done")
 
-    cores = multiprocessing.cpu_count()
-    pool = multiprocessing.Pool(cores)
+    #cores = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(1)
 
     for run_conf in batch:
         # igre_test(run_conf,
