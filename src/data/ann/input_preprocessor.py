@@ -64,6 +64,7 @@ def training_batch_selection(train_set_size, input_img):
     selection_include = selection_include.reshape(-1)
 
     selection = [x for x in selection_include if x not in selection_exclude]
+    np.random.seed()
     selection = np.random.permutation(selection)
 
     # DEBUG: forcing larger training set

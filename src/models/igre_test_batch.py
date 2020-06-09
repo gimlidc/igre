@@ -1,47 +1,56 @@
 from src.models.igre_test import igre_test
 import yaml
 import numpy as np
+import scipy
 from copy import deepcopy
 import os
 import multiprocessing
+from src.config.radial_distortion_test_generator import RadialDistortionGenerator
+from src.config.random_crop_generator import RandomCropGenerator
 
-OUT_FILENAME_FORMAT = "t_{C_X}_{C_Y}_{K1}_{K2}_{K3}" \
+OUT_FILENAME_FORMAT = "t_{K1}_{K2}_{K3}" \
                       + "_modstep{MODALITY_DIFF}_sample{SAMPLE}_{CUSTOM}.result"
 
+ROOT_DIR = os.path.abspath(os.curdir)
 
-def __create_batch(config, transformation, custom):
+def __create_batch(config, crop, transformation, custom):
     """ In principle we expect valid configuration for igre in batch config. But there is possible batch
     configuration in "batch" property. Each variable requires special care, therefore there will be an if
     block in this method for each batch configuration.
     """
     template = deepcopy(config)
     del template["batch"]
-    template["output"] = OUT_FILENAME_FORMAT.replace("{C_X}", str(transformation[0])) \
-        .replace("{C_Y}", str(transformation[1])) \
-        .replace("{K1}", str(transformation[2])) \
-        .replace("{K2}", str(transformation[3])) \
-        .replace("{K3}", str(transformation[4]))
-    batch01 = []
-    param = "output_dimension"
-    for value in np.arange(config["batch"][param]["min"],
-                           config["batch"][param]["max"],
-                           config["batch"][param]["step"]):
+    batch = []
+    # param = "output_dimension"
+    # for value in np.arange(config["batch"][param]["min"],
+    #                        config["batch"][param]["max"],
+    #                        config["batch"][param]["step"]):
+    #     new_cfg = deepcopy(template)
+    #     new_cfg["output_dimensions"]["min"] = value
+    #     new_cfg["output_dimensions"]["max"] = value
+    #     new_cfg["output"] = new_cfg["output"] \
+    #         .replace("{MODALITY_DIFF}", str(value - new_cfg["input_dimensions"]["min"]))
+    #     batch01.append(new_cfg)
+
+    param = "matfile"
+    for input_data in config["batch"][param]["array"]:
         new_cfg = deepcopy(template)
-        new_cfg["output_dimensions"]["min"] = value
-        new_cfg["output_dimensions"]["max"] = value
-        new_cfg["output"] = new_cfg["output"] \
-            .replace("{MODALITY_DIFF}", str(value - new_cfg["input_dimensions"]["min"]))
-        batch01.append(new_cfg)
-    batch02 = []
-    for cfg in batch01:
-        param = "matfile"
-        for i in range(config["batch"][param]["min"], config["batch"][param]["max"]):
-            new_cfg = deepcopy(cfg)
-            new_cfg["matfile"] = config["batch"][param]["template"] \
-                .replace(config["batch"][param]["replace"], str(i))
-            new_cfg["output"] = new_cfg["output"].replace("{SAMPLE}", str(i)).replace("{CUSTOM}", str(custom))
-            batch02.append(new_cfg)
-    return batch02
+        new_cfg["matfile"] = input_data[:-4]  # remove .mat suffix
+        filename_out = f"{input_data[:-4]}-x{crop[0]}-y{crop[1]}-w{crop[2]}-h{crop[3]}"
+        new_cfg["output"] = f"t_{transformation[0]:.2f}_{transformation[1]:.2f}_{transformation[2]:.2f}" \
+                            f"_sample_{filename_out}_{custom}.result"
+        new_cfg["crop"] = {
+            "left_top": {
+                "x": crop[0],
+                "y": crop[1]
+            },
+            "size": {
+                "width": crop[2],
+                "height": crop[3]
+            }
+        }
+        batch.append(new_cfg)
+    return batch
 
 
 if __name__ == "__main__":
@@ -56,112 +65,65 @@ if __name__ == "__main__":
         help="Config file for IGRE batch. For more see example file.",
     )
     parser.add_argument(
-        "-d",
-        "--batch_dir",
-        type=str,
-        default="data/processed/metacentrum/01-registration-experiment",
-        help="yaml output file, where collected data will be placed",
-    )
-    parser.add_argument(
-        "-x",
-        "--x-shift",
-        type=float,
+        "-r",
+        "--radial_distortion_index",
+        type=int,
         default=0,
-        help="x-Shift of the input data",
+        help="One of possible radial distortions (from the generator) is selected",
     )
+    # parser.add_argument(
+    #     "-m",
+    #     "--mat_file",
+    #     type=str,
+    #     default="leonardo.mat",
+    #     help="matfile with input nd-array",
+    # )
     parser.add_argument(
-        "-y",
-        "--y-shift",
-        type=float,
+        "-t",
+        "--crop_index",
+        type=int,
         default=0,
-        help="y-Shift of the input data",
+        help="from the list of possible crops one is selected (according to this index)",
     )
     parser.add_argument(
         "-s",
         "--repeats",
         type=int,
-        default=20,
-        help="Number of repeated computations with different random seed",
+        default=1,
+        help="index of this run - there are multiple with the same configuration",
     )
     parser.add_argument(
-        "-r",
-        "--rotation",
-        type=float,
-        default=0,
-        help="Rotation of the input data",
-    )
-    parser.add_argument(
-        "-t",
-        "--x-scale",
-        type=float,
-        default=0,
-        help="x-scale of the input data",
-    )
-    parser.add_argument(
-        "-u",
-        "--y-scale",
-        type=float,
-        default=0,
-        help="y-scale of the input data",
-    )
-    parser.add_argument(
-        "-k",
-        "--k1",
-        type=float,
-        default=0,
-        help="radial distortion applied on input image (1 + K1 * r^2 + k2 * r^4 + k3 * r^6"
-    )
-    parser.add_argument(
-        "-l",
-        "--k2",
-        type=float,
-        default=0,
-        help="radial distortion applied on input image (1 + k1 * r^2 + K2 * r^4 + k3 * r^6"
-    )
-    parser.add_argument(
-        "-m",
-        "--k3",
-        type=float,
-        default=0,
-        help="radial distortion applied on input image (1 + k1 * r^2 + k2 * r^4 + K3 * r^6"
-    )
-    parser.add_argument(
-        "-c",
-        "--cx",
-        type=float,
-        default=0,
-        help="Center of radial distortion in coordinates of the input image",
-    )
-    parser.add_argument(
-        "-y",
-        "--cy",
-        type=float,
-        default=0,
-        help="Center of radial distortion in coordinates of the input image",
+        "-o",
+        "--outdir",
+        type=str,
+        default=1,
+        help="path to output directory",
     )
 
     args = parser.parse_args()
-    if not os.path.exists(args.batch_dir):
-        os.makedirs(args.batch_dir)
     with open(args.config) as config_file:
         batch_config = yaml.load(config_file, Loader=yaml.FullLoader)
-    batch = __create_batch(batch_config, (args.cx,
-                                          args.cy,
-                                          args.k1,
-                                          args.k2,
-                                          args.k3), args.repeats)
+
+    image = scipy.io.loadmat(os.path.join(ROOT_DIR, "data", "raw", args.mat_file))['data']
+
+    distortion_generator = RadialDistortionGenerator(max_displacement=5)
+    crop_generator = RandomCropGenerator(image.shape)
+    batch = __create_batch(batch_config,
+                           crop_generator.get_crop(args.crop_index),
+                           distortion_generator.get_radial_distortion_params(args.radial_distortion_index),
+                           args.repeats)
     print("done")
 
     cores = multiprocessing.cpu_count()
-    pool = multiprocessing.Pool(1)
+    pool = multiprocessing.Pool(cores)
 
     for run_conf in batch:
-        pool.apply_async(igre_test, [run_conf, (args.cx,
-                                                args.cy,
-                                                args.k1,
-                                                args.k2,
-                                                args.k3),
-                                     os.path.join(args.batch_dir, run_conf["output"])])
+        # igre_test(run_conf,
+        #           distortion_generator.get_radial_distortion_params(args.radial_distortion_index),
+        #           os.path.join(args.outdir, run_conf["output"]))
+        pool.apply_async(igre_test, [run_conf,
+                                     distortion_generator.get_radial_distortion_params(args.radial_distortion_index),
+                                     os.path.join(args.outdir, run_conf["output"])])
 
     pool.close()
     pool.join()

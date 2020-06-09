@@ -46,7 +46,7 @@ def igre_test(conf, transformation, output):
     # Config load and integrity check
     if type(conf) == str:
         with open(conf, "rt", encoding='utf-8') as config_file:
-            config = yaml.load(config_file)
+            config = yaml.load(config_file, Loader=yaml.Loader)
     else:
         config = conf.copy()
     init_config(config)
@@ -153,6 +153,7 @@ def igre_test(conf, transformation, output):
     mean = np.mean(displacement)
     Verbose.imshow(displacement, Verbose.debug)
 
+    print("Running igre core...")
     bias, bias_history = igre.run(inputs,
                                   outputs,
                                   visible=visible)
@@ -182,7 +183,7 @@ def igre_test(conf, transformation, output):
     print("mean: " + str(float(mean_recreated)))
     print("max: " + str(float(np.max(displacement_recreated))))
 
-    output = None
+    # output = None
 
     if output is not None:
         with open(output, 'w') as ofile:
@@ -192,9 +193,18 @@ def igre_test(conf, transformation, output):
                 # "rotation": float(bias[1][0][0] * config["layer_normalization"]["rotation"] * 180 / np.pi),
                 # "scale_x": float(bias[2][0][0] * config["layer_normalization"]["scale"] + 1),
                 # "scale_y": float(bias[2][0][1] * config["layer_normalization"]["scale"] + 1),
-                "k1": float(bias[0][0][0]),
-                "k2": float(bias[1][0][0]),
-                "k3": float(bias[2][0][0])
+                "k1": f"{bias[0]}",
+                "k2": f"{bias[1]}",
+                "k3": f"{bias[2]}",
+                "mean": f"{mean_recreated}",
+                "max": f"{np.max(displacement_recreated)}"
+            }
+            config["ground_truth"] = {
+                "k1": f"{exp_k1}",
+                "k2": f"{exp_k2}",
+                "k3": f"{exp_k3}",
+                "mean": f"{float(mean)}",
+                "max": f"{np.max(displacement)}"
             }
             if "print_bias_history" in config["train"]:
                 config["bias_history"] = bias_history

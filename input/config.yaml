@@ -1,4 +1,4 @@
-matfile: 'kiddo.mat'
+matfile: 'leonardo.mat'
 verbose_level: 1
 crop:
   left_top:
