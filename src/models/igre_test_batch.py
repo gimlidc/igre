@@ -37,14 +37,15 @@ def __create_batch(config, crop_index, transformation, custom):
     for input_data in config["batch"][param]["array"]:
         new_cfg = deepcopy(template)
         new_cfg["matfile"] = input_data[:-4]  # remove .mat suffix
-        filename_out = f"{input_data[:-4]}-x{crop[0]}-y{crop[1]}-w{crop[2]}-h{crop[3]}"
-        new_cfg["output"] = f"t_{transformation[0]:.2f}_{transformation[1]:.2f}_{transformation[2]:.2f}" \
-                            f"_sample_{filename_out}_{custom}.result"
 
         image = scipy.io.loadmat(os.path.join(ROOT_DIR, "data", "raw", input_data))['data']
 
         crop_generator = RandomCropGenerator(image.shape)
         crop = crop_generator.get_crop(crop_index)
+
+        filename_out = f"{input_data[:-4]}-x{crop[0]}-y{crop[1]}-w{crop[2]}-h{crop[3]}"
+        new_cfg["output"] = f"t_{transformation[0]:.2f}_{transformation[1]:.2f}_{transformation[2]:.2f}" \
+                            f"_sample_{filename_out}_{custom}.result"
 
         new_cfg["crop"] = {
             "left_top": {
