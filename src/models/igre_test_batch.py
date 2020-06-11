@@ -13,7 +13,8 @@ OUT_FILENAME_FORMAT = "t_{K1}_{K2}_{K3}" \
 
 ROOT_DIR = os.path.abspath(os.curdir)
 
-def __create_batch(config, crop, transformation, custom):
+
+def __create_batch(config, crop_index, transformation, custom):
     """ In principle we expect valid configuration for igre in batch config. But there is possible batch
     configuration in "batch" property. Each variable requires special care, therefore there will be an if
     block in this method for each batch configuration.
@@ -39,6 +40,12 @@ def __create_batch(config, crop, transformation, custom):
         filename_out = f"{input_data[:-4]}-x{crop[0]}-y{crop[1]}-w{crop[2]}-h{crop[3]}"
         new_cfg["output"] = f"t_{transformation[0]:.2f}_{transformation[1]:.2f}_{transformation[2]:.2f}" \
                             f"_sample_{filename_out}_{custom}.result"
+
+        image = scipy.io.loadmat(os.path.join(ROOT_DIR, "data", "raw", input_data))['data']
+
+        crop_generator = RandomCropGenerator(image.shape)
+        crop = crop_generator.get_crop(crop_index)
+
         new_cfg["crop"] = {
             "left_top": {
                 "x": crop[0],
@@ -104,12 +111,9 @@ if __name__ == "__main__":
     with open(args.config) as config_file:
         batch_config = yaml.load(config_file, Loader=yaml.FullLoader)
 
-    image = scipy.io.loadmat(os.path.join(ROOT_DIR, "data", "raw", args.mat_file))['data']
-
     distortion_generator = RadialDistortionGenerator(max_displacement=5)
-    crop_generator = RandomCropGenerator(image.shape)
     batch = __create_batch(batch_config,
-                           crop_generator.get_crop(args.crop_index),
+                           args.crop_index,
                            distortion_generator.get_radial_distortion_params(args.radial_distortion_index),
                            args.repeats)
     print("done")
