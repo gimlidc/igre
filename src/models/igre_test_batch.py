@@ -44,7 +44,7 @@ def __create_batch(config, crop_index, transformation, custom):
         crop = crop_generator.get_crop(crop_index)
 
         filename_out = f"{input_data[:-4]}-x{crop[0]}-y{crop[1]}-w{crop[2]}-h{crop[3]}"
-        new_cfg["output"] = f"t_{transformation[0]:.2f}_{transformation[1]:.2f}_{transformation[2]:.2f}" \
+        new_cfg["output"] = f"t_{transformation[2]:.2f}_{transformation[3]:.2f}_{transformation[4]:.2f}" \
                             f"_sample_{filename_out}_{custom}.result"
 
         new_cfg["crop"] = {

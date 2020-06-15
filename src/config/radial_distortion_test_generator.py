@@ -17,7 +17,7 @@ class RadialDistortionGenerator:
         self.__generate()
 
     def __generate(self):
-        self.result = [(0,0,0)]
+        self.result = [(0,0,0,0,0)]
         for i in np.linspace(-self.a_range, self.a_range, self.sampling):
             for j in np.linspace(-self.b_range, self.b_range, self.sampling):
                 for k in np.linspace(-self.c_range, self.c_range, self.sampling):
