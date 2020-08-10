@@ -67,7 +67,7 @@ def training_batch_selection(train_set_size, input_img):
     selection = np.random.permutation(selection)
 
     # DEBUG: forcing larger training set
-    train_set_size = int(train_set_size/2)
+    train_set_size = int(train_set_size*2)
 
     selection = selection[:train_set_size]
 

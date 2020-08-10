@@ -13,8 +13,16 @@ class RDCompleteLayer(tf.keras.layers.Layer):
         super(RDCompleteLayer, self).__init__(**kwargs)
         tf.compat.v1.constant_initializer()
         # shift in pixels
-        self.k123 = self.add_weight(name='multi', shape=(3,), dtype=tf.float32, initializer='zeros',
+        self.k1 = self.add_weight(name='multi', shape=(1,), dtype=tf.float32, initializer='zeros',
                                     trainable=trainable,
+                                    # constraint=TanhConstraint()
+                                    )
+        self.k2 = self.add_weight(name='multi', shape=(1,), dtype=tf.float32, initializer='zeros',
+                                    trainable=False,
+                                    # constraint=TanhConstraint()
+                                    )
+        self.k3 = self.add_weight(name='multi', shape=(1,), dtype=tf.float32, initializer='zeros',
+                                    trainable=False,
                                     # constraint=TanhConstraint()
                                     )
 
@@ -23,7 +31,6 @@ class RDCompleteLayer(tf.keras.layers.Layer):
         config = get_config()
         w = ii.image.width - 1
         h = ii.image.height - 1
-
         crop_w = 0
         crop_h = 0
         if "crop" in config:
@@ -34,9 +41,9 @@ class RDCompleteLayer(tf.keras.layers.Layer):
                                                         2.), tf.constant([h, w], dtype=tf.float32)), [1., 1.])
         radius = tf.sqrt(tf.add(tf.pow(tf.subtract(coords_norm[:, 0], ii.image.c_x), 2),
                                 tf.pow(tf.subtract(coords_norm[:, 1], ii.image.c_y), 2)))
-        k1 = tf.multiply(self.k123[0], config["layer_normalization"]["radial_distortion"])
-        k2 = tf.multiply(self.k123[1], config["layer_normalization"]["radial_distortion_2"])
-        k3 = tf.multiply(self.k123[2], config["layer_normalization"]["radial_distortion_3"])
+        k1 = tf.multiply(self.k1[0], config["layer_normalization"]["radial_distortion"])
+        k2 = tf.multiply(self.k2[0], config["layer_normalization"]["radial_distortion_2"])
+        k3 = tf.multiply(self.k3[0], config["layer_normalization"]["radial_distortion_3"])
 
         distortion = tf.add(tf.add(tf.add(tf.multiply(k1, tf.pow(radius, 2)),
                                           tf.multiply(k2, tf.pow(radius, 4))),

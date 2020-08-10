@@ -16,45 +16,33 @@ output_dimensions:
   min: 27
   max: 27
 expected_max_px_misplacement: 15
-inside_part: 100
-outside_part: 20
+inside_part: 150
+outside_part: 15
 layer_normalization:
   shift: 2000
   scale: 0.1
   rotation: 0.1
-  radial_distortion: 1.
-  radial_distortion_2: 0.1
-  radial_distortion_3: 0.04
+  radial_distortion: 0.01
+  radial_distortion_2: 0.01
+  radial_distortion_3: 0.005
 train:
   batch_size: 2048
   stages:
-    - type: dist_complete_2
-      epochs: 1000
-    - type: dist_complete
-      epochs: 1000
-    - type: dist_complete_2
-      epochs: 1000
-    - type: dist_complete
-      epochs: 1000
-    - type: dist_complete_2
-      epochs: 1000
-    - type: dist_complete
-      epochs: 1000
-    - type: dist_complete_2
-      epochs: 2000
-    - type: dist_complete
-      epochs: 2000
+    - type: adam_rd
+      epochs: 500
+    - type: sgd_rd
+      epochs: 500
   use_gpu: false
   shift_learning_multi: 10 # to achieve different learning rate for shift and rotation
   shift_learning_multi_2: 700000
   optimizer:
     family: "adam"
-    learning_rate: 0.0000035
+    learning_rate: 0.00025
     beta1: 0.9
-    beta2: 0.8
+    beta2: 0.999
   refiner:
     family: "SGD"
-    learning_rate: 0.001
-    decay: 0.001
-    momentum: 0.9
+    learning_rate: 3.0
+    decay: 0.01
+    momentum: 0.99
 

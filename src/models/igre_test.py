@@ -76,7 +76,7 @@ def igre_test(conf, shift, output):
                            str(config["input_dimensions"]["max"]) + "]"),
                           "green"), Verbose.debug)
     visible = dataset[:, :, config["input_dimensions"]["min"]: config["input_dimensions"]["max"] + 1]
-    Verbose.imshow(visible[:, :, 0])
+    Verbose.imshow(visible[5:-5, 5:-5, 0])
 
     x = visible.shape[:-1]
     x_size = x[0]
@@ -103,9 +103,9 @@ def igre_test(conf, shift, output):
     tform = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
 
     # Set radial distortion parameters
-    k1 = -0.021
-    k2 = 0.006
-    k3 = 0.001
+    k1 = 0.015
+    k2 = 0.00
+    k3 = 0.00
     tform.set_distortion(0., 0., k1, k2, k3)
 
     # calculate the best inverse radial distortion
@@ -116,7 +116,7 @@ def igre_test(conf, shift, output):
     tform_inverse_gt.set_distortion(0., 0., exp_k1, exp_k2, exp_k3)
 
     inputs = tform.apply_distortion(indexes)
-
+    a=1
     # Calculate error of "ground truth" inverse
 
     # tform_inv = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
@@ -146,7 +146,7 @@ def igre_test(conf, shift, output):
     mean = np.mean(displacement)
     Verbose.imshow(displacement, Verbose.debug)
 
-    bias, bias_history = igre.run(inputs,
+    model, bias, bias_history = igre.run(inputs,
                                   outputs,
                                   visible=visible)
 
@@ -163,6 +163,11 @@ def igre_test(conf, shift, output):
     # tform_inv.set_distortion(0., 0., 0, 0, bias[2])
     # inputs_recreated = tform_inv.apply_distortion(inputs_recreated)
 
+    diff_start = abs(indexes - inputs)
+    displacement_start = np.sqrt(np.power(diff_start[:, 0], 2) + np.power(diff_start[:, 1], 2))
+    displacement_start = displacement_start.reshape(x_size, y_size)
+    displacement_start = displacement_start[5:-5, 5:-5]
+
     diff_recreated = abs(indexes - inputs_recreated)
     displacement_recreated = np.sqrt(np.power(diff_recreated[:, 0], 2) + np.power(diff_recreated[:, 1], 2))
     displacement_recreated = displacement_recreated.reshape(x_size, y_size)
@@ -174,6 +179,12 @@ def igre_test(conf, shift, output):
     print("max_gt: " + str(float(np.max(displacement))))
     print("mean: " + str(float(mean_recreated)))
     print("max: " + str(float(np.max(displacement_recreated))))
+    print("mean_start: " + str(float(np.mean(displacement_start))))
+    print("max_start: " + str(float(np.max(displacement_start))))
+
+
+    tformed_image = model.predict(inputs)
+    Verbose.imshow(tformed_image.reshape(x_size, y_size)[5:-5, 5:-5])
 
 
     output = None

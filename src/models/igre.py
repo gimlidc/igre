@@ -79,7 +79,7 @@ def __train_networks(inputs,
     # radial_distortion_layer = RDistortionLayer(name='RDistortionLayer')(rotation_layer)
     # radial_distortion_layer_2 = RDistortionLayer2(name='RDistortionLayer2')(radial_distortion_layer)
     # radial_distortion_layer_3 = RDistortionLayer3(name='RDistortionLayer3')(radial_distortion_layer_2)
-    layer = Idx2PixelBCLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer)
+    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer)
 
     # TODO: Add InformationGain layers here when necessary
     print('Adding ReLU output layer, width =', outputs.shape[1])
@@ -103,8 +103,9 @@ def __train_networks(inputs,
     model.layers[1].set_weights([np.array([0, 0])])  # shift
     model.layers[2].set_weights([np.array([0, 0])])  # scale
     model.layers[3].set_weights([np.array([0])])     # rotation
-
+    # model.load_weights(MODEL_FILE)
     # TODO: better names for stages
+    config = get_config()
     for stage in stages:
         if stage['type'] == 'blur':
             output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
@@ -118,47 +119,22 @@ def __train_networks(inputs,
             output = outputs
             __set_train_registration(model, True)
             model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
-        elif stage['type'] == 'dist_1':
-            output = outputs
-            __set_train_registration(model, 1, target="distortion")
-            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
-        elif stage['type'] == 'dist_2':
-            output = outputs
-            __set_train_registration(model, 2, target="distortion")
-            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
-        elif stage['type'] == 'dist_1_2':
-            output = outputs
-            __set_train_registration(model, 1, target="distortion")
-            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
-        elif stage['type'] == 'dist_2_2':
-            output = outputs
-            __set_train_registration(model, 2, target="distortion")
-            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
-        elif stage['type'] == 'dist_3':
-            output = outputs
-            __set_train_registration(model, 4, target="distortion")
-            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
-        elif stage['type'] == 'dist_3_2':
-            output = outputs
-            __set_train_registration(model, 4, target="distortion")
-            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
+        else:
+            stage_params = stage['type'].split('_')
 
-        elif stage['type'] == 'refine_dist':
-            output = outputs
-            __set_train_registration(model, 7, target="distortion")
-            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
-        elif stage['type'] == 'refine_dist_2':
-            output = outputs
-            __set_train_registration(model, 7, target="distortion")
-            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
-        elif stage['type'] == 'dist_complete':
-            output = outputs
-            __set_train_registration(model, True, target="rd")
-            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
-        elif stage['type'] == 'dist_complete_2':
-            output = outputs
-            __set_train_registration(model, True, target="rd")
-            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
+            if stage_params[0] == 'adam':
+                opt_type = 'optimizer'
+                opt = build_optimizer(config["train"][opt_type], config["train"]["batch_size"])
+            elif stage_params[0] == 'sgd':
+                opt_type = 'refiner'
+                opt = build_refining_optimizer(config["train"][opt_type])
+
+            if stage_params[1] == 'rd':
+                targ = "rd"
+                output = outputs
+
+            __set_train_registration(model, True, target=targ)
+            model.compile(loss='mean_squared_error', optimizer=opt, metrics=['mean_squared_error'])
 
         reset_visible(output)
         output = output[selection, :]
@@ -168,33 +144,45 @@ def __train_networks(inputs,
         # distortion_metric = DistortionMetrics()
         distortion_metric = RDMetrics()
 
-        # mcp_save = ModelCheckpoint(MODEL_FILE,
-        #                            save_best_only=True, monitor='val_loss', mode='min')
+        mcp_save = ModelCheckpoint(MODEL_FILE,
+                                   save_best_only=True, monitor='val_loss', mode='min')
+        checkpoint_filepath = MODEL_FILE
+        model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+            filepath=checkpoint_filepath,
+            save_weights_only=True,
+            monitor='val_loss',
+            mode='min',
+            save_best_only=True)
         # lr_reduction = ReduceLROnPlateau(monitor='val_loss', factor=0.9, patience=100, verbose=0, mode='auto',
         #                                  min_delta=0.0001, cooldown=0, min_lr=0)
 
         log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-        callbacks = [shift_metric, scale_metric, rotation_metric, distortion_metric, tensorboard_callback]
+        callbacks = [shift_metric, scale_metric, rotation_metric, distortion_metric, tensorboard_callback,
+                     model_checkpoint_callback]
 
         history = model.fit(indexes,
                             output,
                             epochs=stage['epochs'],
                             validation_split=0.2,
                             verbose=1,
-                            callbacks=[shift_metric, scale_metric, rotation_metric, distortion_metric],
+                            callbacks=[shift_metric, scale_metric, rotation_metric, distortion_metric,
+                                       model_checkpoint_callback
+                                       ],
                             batch_size=batch_size
                             )
 
-        config = get_config()
+
         coef_1 = [x[0][0]*config["layer_normalization"]["radial_distortion"] for x in distortion_metric.bias_history]
-        coef_2 = [x[0][1]*config["layer_normalization"]["radial_distortion_2"] for x in distortion_metric.bias_history]
-        coef_3 = [x[0][2]*config["layer_normalization"]["radial_distortion_3"] for x in distortion_metric.bias_history]
+        coef_2 = [x[1][0]*config["layer_normalization"]["radial_distortion_2"] for x in distortion_metric.bias_history]
+        coef_3 = [x[2][0]*config["layer_normalization"]["radial_distortion_3"] for x in distortion_metric.bias_history]
         plt.plot(coef_1, label="1")
         plt.plot(coef_2, label="2")
         plt.plot(coef_3, label="3")
 
-        plt.title("Transformation")
+        model.load_weights(checkpoint_filepath)
+
+        plt.title("Transformation %f %f %f " % (coef_1[-1], coef_2[-1], coef_3[-1]))
         plt.legend()
         plt.show()
 
@@ -205,17 +193,12 @@ def __train_networks(inputs,
     print("Total time {:.4f}'s".format(elapsed_time))
 
     # calculate gain and save best model so far
-    # File "C:\Anaconda\envs\igre\lib\site-packages\tensorflow\python\keras\engine\training.py", line 1078, in predict
-    #     callbacks=callbacks)
-    #   File "C:\Anaconda\envs\igre\lib\site-packages\tensorflow\python\keras\engine\training_arrays.py", line 370, in model_iteration
-    #     aggregator.aggregate(batch_outs, batch_start, batch_end)
-    #   File "C:\Anaconda\envs\igre\lib\site-packages\tensorflow\python\keras\engine\training_utils.py", line 169, in aggregate
-    #     self.results[i][batch_start:batch_end] = batch_out
-    # ValueError: could not broadcast input array from shape (212,212) into shape (212,2048)
+    model.load_weights(checkpoint_filepath)
+
     gain = abs(outputs[selection, :] - model.predict(indexes, batch_size=batch_size)) / (outputs.shape[0] *
                                                                                          outputs.shape[1])
-    # information_gain_max = gain.flatten().max()
-    # print('Gain: {:1.4e}'.format(information_gain_max))
+    information_gain_max = gain.flatten().max()
+    print('Gain: {:1.4e}'.format(information_gain_max))
 
     return model, history, shift_metric.bias_history
 
@@ -261,28 +244,6 @@ def __set_train_registration(model, value, target="registration"):
         model.layers[4].trainable = value
         model.layers[5].trainable = not value
         model.layers[6].trainable = not value
-    elif target == "distortion":
-        model.layers[1].trainable = not value
-        model.layers[2].trainable = not value
-        model.layers[3].trainable = not value
-        if value == 1:
-            model.layers[4].trainable = value
-            model.layers[5].trainable = not value
-            model.layers[6].trainable = not value
-        if value == 2:
-            model.layers[4].trainable = not value
-            model.layers[5].trainable = value
-            model.layers[6].trainable = not value
-        if value == 4:
-            model.layers[4].trainable = not value
-            model.layers[5].trainable = not value
-            model.layers[6].trainable = value
-        if value == 7:
-            model.layers[4].trainable = value
-            model.layers[5].trainable = value
-            model.layers[6].trainable = value
-        model.layers[7].trainable = not value
-        model.layers[8].trainable = not value
 
 
 def __information_gain(coords,
@@ -364,8 +325,8 @@ def run(inputs,
     Verbose.print("Scale: " + colored(str(bias[0]*config["layer_normalization"]["scale"] + 1), "green"), Verbose.always)
 
     k1 = layer_dict['RDistortionLayer'].get_weights()[0][0] * config["layer_normalization"]["radial_distortion"]
-    k2 = layer_dict['RDistortionLayer'].get_weights()[0][1] * config["layer_normalization"]["radial_distortion_2"]
-    k3 = layer_dict['RDistortionLayer'].get_weights()[0][2] * config["layer_normalization"]["radial_distortion_3"]
+    k2 = layer_dict['RDistortionLayer'].get_weights()[1][0] * config["layer_normalization"]["radial_distortion_2"]
+    k3 = layer_dict['RDistortionLayer'].get_weights()[2][0] * config["layer_normalization"]["radial_distortion_3"]
     exp_k1 = -k1
     exp_k2 = 3*k1*k1 - k2
     exp_k3 = -12*k1*k1*k1 + 8*k1*k2 - k3
@@ -375,4 +336,4 @@ def run(inputs,
     # bias = layer_dict['ShearLayer'].get_weights()
     # Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)
 
-    return bias, bias_history
+    return model, bias, bias_history
