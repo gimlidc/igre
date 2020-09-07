@@ -1,12 +1,9 @@
 import tensorflow as tf
-import numpy as np
 from src.tftools.custom_constraint import TanhConstraint
 from src.config.tools import get_config
 
 
 # handles +-5 deg
-
-
 class RotationLayer(tf.keras.layers.Layer):
 
     def __init__(self, trainable=True, **kwargs):
@@ -17,7 +14,7 @@ class RotationLayer(tf.keras.layers.Layer):
         tf.compat.v1.constant_initializer()
         # rotation by an angle in radians
         self.rotation = self.add_weight(name='multi', shape=(1,), dtype=tf.float32, initializer='zeros',
-                                        trainable=False,
+                                        trainable=True
                                         # constraint=TanhConstraint()
                                         )
 

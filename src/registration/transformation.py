@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 from src.config.tools import get_config
 import src.config.image_info as ii
+from scipy.interpolate import RectBivariateSpline
+
 
 class Transformation:
     """ Internal representation of 2D planar transformation.
@@ -34,8 +36,9 @@ class Transformation:
 
     def set_rotation(self, angle_degrees, center=(0, 0)):
         transformation_matrix = cv2.getRotationMatrix2D(center, angle_degrees, 1)
-        self.a = transformation_matrix[:, 0]
-        self.b = transformation_matrix[:, 1]
+        mtx = np.matmul(transformation_matrix[:, :2], np.stack([self.a, self.b], axis=0))
+        self.a = mtx[:, 0]
+        self.b = mtx[:, 1]
         self.c += transformation_matrix[:, 2]
 
     def transform(self, coordinates):
@@ -46,7 +49,7 @@ class Transformation:
         :return: list
             new 2D planar coordinates
         """
-        if len(coordinates)//2 == 1:
+        if len(coordinates) // 2 == 1:
             coords = np.reshape(np.asarray(coordinates), (1, 2))
         else:
             coords = np.asarray(coordinates)
@@ -67,7 +70,7 @@ class Transformation:
         self.k3 = k3
 
     def apply_distortion(self, coordinates):
-        if len(coordinates)//2 == 1:
+        if len(coordinates) // 2 == 1:
             coords = np.reshape(np.asarray(coordinates), (1, 2))
         else:
             coords = np.asarray(coordinates)
@@ -97,9 +100,39 @@ class Transformation:
 
         return transformed_coordinates
 
+    @staticmethod
+    def affine(img, scale, rotation, shift):
+        a = np.array([1/scale, 0.])
+        b = np.array([0., 1/scale])
+        c = np.array([-shift[0], -shift[1]])
+        d = np.array([0., 0.])
+        e = np.array([0., 0.])
+        tform = Transformation(a, b, c, d, e)
+        tform.set_rotation(rotation)
+        xx, yy = np.meshgrid(range(img.shape[0]), range(img.shape[1]))
+        coords = np.stack([xx, yy], axis=2).reshape(-1, 2)
+        coords = tform.transform(coords)
+        spline = RectBivariateSpline(range(img.shape[0]), range(img.shape[1]), img)
+        return spline(coords[:, 0], coords[:, 1], grid=False).reshape(img.shape[1], img.shape[0]).T
+
+
+    @staticmethod
+    def build(scale, rotation, shift):
+        a = np.array([1 / scale, 0.])
+        b = np.array([0., 1 / scale])
+        c = np.array([-shift[0], -shift[1]])
+        d = np.array([0., 0.])
+        e = np.array([0., 0.])
+        tform = Transformation(a, b, c, d, e)
+        tform.set_rotation(rotation)
+        return tform
+
+
     def __str__(self):
-        return str(self.a[0]) + "x + " + str(self.b[0]) + "y + " + str(self.c[0]) + "\t" + \
-               str(self.a[1]) + "x + " + str(self.b[1]) + "y + " + str(self.c[1]) + "\n" + \
-               "-----------------\t-----------------\n" + \
-               str(self.e[0]) + "x + " + str(self.e[0]) + "y + " + " 1\t" + \
-               str(self.e[1]) + "x + " + str(self.e[1]) + "y + " + " 1"
+        return str(
+            f"{self.a[0]:0.2f}x + {self.b[0]:0.2f}y + {self.c[0]:0.2f}\t"
+            f"{self.a[1]:0.2f}x + {self.b[1]:0.2f}y + {self.c[1]:0.2f}\n"
+            f"--------------------\t--------------------\n"
+            f"{self.d[0]:0.2f}x + {self.e[0]:0.2f}y + 1\t"
+            f"{self.d[0]:0.2f}x + {self.e[0]:0.2f}y + 1\t"
+        )

@@ -30,7 +30,11 @@ class Verbose:
     @staticmethod
     def imshow(a, level=1):
         if level <= verbose_level:
-            plt.imshow(a, cmap='gray')
+            if len(a.shape) > 2:
+                plt.imshow(a[:, :, 0], cmap='gray')
+                plt.title(f"Image dimension 0 (out of {a.shape[2]}")
+            else:
+                plt.imshow(a, cmap='gray')
             plt.show()
 
     @staticmethod

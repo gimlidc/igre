@@ -20,6 +20,9 @@ sklearn = "*"
 scikit-learn = "*"
 pipenv = "*"
 jsonschema = "*"
+jupyter = "*"
+notebook = "*"
+ipykernel = "*"
 
 [requires]
 python_version = "3.6"

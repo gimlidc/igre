@@ -47,11 +47,11 @@ def build_optimizer(config, batch_size):
     training_active = True
     if training_active:
         batches_per_epoch = FLAGS.NUM_TRAIN_IMAGES / FLAGS.train_batch_size
-        global_step = tf.train.get_or_create_global_step()
+        global_step = tf.compat.v1.train.get_or_create_global_step()
         current_epoch = tf.cast(
             (tf.cast(global_step, tf.float32) / batches_per_epoch), tf.int32)
 
-        learning_rate = tf.train.exponential_decay(
+        learning_rate = tf.compat.v1.train.exponential_decay(
             learning_rate=initial_learning_rate,
             global_step=global_step,
             decay_steps=int(FLAGS.learning_rate_decay_epochs * batches_per_epoch),
