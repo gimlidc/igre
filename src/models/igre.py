@@ -242,8 +242,8 @@ def __set_train_registration(model, value, target="registration"):
         model.layers[2].trainable = not value
         model.layers[3].trainable = not value
         model.layers[4].trainable = value
-        model.layers[5].trainable = not value
-        model.layers[6].trainable = not value
+        model.layers[5].trainable = value
+        model.layers[6].trainable = value
 
 
 def __information_gain(coords,

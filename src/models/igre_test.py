@@ -30,7 +30,7 @@ def data_crop(config, dataset):
     return dataset
 
 
-def igre_test(conf, shift, output):
+def igre_test(conf, transformation, output):
     """
     Information gain and registration test works with registered inputs. For testing registration layer, input pixels
     are shifted by shift[0] in x axis and by shift[1] in y axis.
@@ -53,7 +53,7 @@ def igre_test(conf, shift, output):
 
     Verbose.print(
         "\nWelcome to " + colored("IGRE-test", "green") + " run with file: " + colored(config["matfile"], "green") +
-        " expected shift: " + colored(shift, "green") + "\n")
+        " expected transformation: " + colored(transformation, "green") + "\n")
 
     if "matfile" in config:
         dataset = np.float64(scipy.io.loadmat(os.path.join(ROOT_DIR, "data", "raw", config["matfile"]))['data'])
@@ -103,9 +103,9 @@ def igre_test(conf, shift, output):
     tform = Transformation(a=(1.0, 0.0), b=(0.0, 1.,), c=shift)
 
     # Set radial distortion parameters
-    k1 = 0.015
-    k2 = 0.00
-    k3 = 0.00
+    k1 = transformation[0]
+    k2 = transformation[1]
+    k3 = transformation[2]
     tform.set_distortion(0., 0., k1, k2, k3)
 
     # calculate the best inverse radial distortion
@@ -213,18 +213,25 @@ if __name__ == "__main__":
         help="Config file for IGRE. For more see example file.",
     )
     parser.add_argument(
-        "-x",
-        "--x-shift",
+        "-k",
+        "--radial-1",
         type=float,
         default=0,
-        help="x-Shift of the input data",
+        help="1st radial distortion with the power 2 of x",
     )
     parser.add_argument(
-        "-y",
-        "--y-shift",
+        "-l",
+        "--radial-2",
         type=float,
         default=0,
-        help="y-Shift of the input data",
+        help="2nd radial distortion coefficient with x with 4th power",
+    )
+    parser.add_argument(
+        "-m",
+        "--radial-3",
+        type=float,
+        default=0,
+        help="3rd radial distortion coefficient with x with 6th power",
     )
     parser.add_argument(
         "-o",
@@ -233,4 +240,4 @@ if __name__ == "__main__":
         help="yaml output file, where collected data will be placed",
     )
     args = parser.parse_args()
-    igre_test(args.config, (args.x_shift, args.y_shift), args.output)
+    igre_test(args.config, (args.radial_1, args.radial_2, args.radial_3), args.output)

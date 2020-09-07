@@ -1,4 +1,4 @@
-matfile: 'kiddo.mat'
+matfile: 'leonardo.mat'
 verbose_level: 1
 crop:
   left_top:
@@ -37,7 +37,7 @@ train:
   shift_learning_multi_2: 700000
   optimizer:
     family: "adam"
-    learning_rate: 0.00025
+    learning_rate: 0.0025
     beta1: 0.9
     beta2: 0.999
   refiner:
