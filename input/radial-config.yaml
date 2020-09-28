@@ -6,9 +6,12 @@ expected_max_px_misplacement: 15
 inside_part: 150
 outside_part: 15
 layer_normalization:
-  radial_distortion: 0.01
-  radial_distortion_2: 0.01
-  radial_distortion_3: 0.005
+  shift: 2000
+  scale: 0.1
+  rotation: 0.1
+  radial_distortion: 1
+  radial_distortion_2: 1
+  radial_distortion_3: 1
 crop:
   left_top:
     x: 150
@@ -26,7 +29,7 @@ train:
   use_gpu: false
   optimizer:
     family: "adam"
-    learning_rate: 0.00025
+    learning_rate: 0.001
     beta1: 0.9
     beta2: 0.999
   refiner:

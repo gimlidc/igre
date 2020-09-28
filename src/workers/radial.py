@@ -1,7 +1,7 @@
 from tensorflow.keras.callbacks import TensorBoard
 from src.tftools.radial_distortion_complete import RDCompleteLayer
 from src.logging.verbose import Verbose
-from src.data.ann.input_preprocessor import pixels_for_training_radial, training_batch_selection
+from src.data.ann.input_preprocessor import pixels_for_training_radial, training_batch_selection, blur_preprocessing
 import tensorflow as tf
 from time import time
 import numpy as np
@@ -15,6 +15,9 @@ import datetime
 from src.tftools.callbacks.inter_predict import InterPredictCallback
 from src.tftools.idx2pixel_layer import Idx2PixelLayer, reset_visible
 from src.tftools.transform_metric import RDMetrics
+from src.tftools.shift_layer import ShiftLayer
+from src.tftools.scale_layer import ScaleLayer
+from src.tftools.rotation_layer import RotationLayer
 
 
 MODEL_FILE = "best_model.tmp.h5"
@@ -82,29 +85,28 @@ def __train_networks(inputs,
     """
     Verbose.print('Selecting ' + str(train_set_size) + ' samples randomly for use by algorithm.')
 
-    indexes = pixels_for_training_radial(train_set_size, reg_layer_data)
+    selection = training_batch_selection(train_set_size, reg_layer_data)
+    indexes = inputs[selection, :]
 
     # define model
-    logger.info('Adding input layer, width =', indexes.shape[1])
+    print('Adding input layer, width =', indexes.shape[1])
+
+    # TODO: revisit shear layer
     input_layer = tf.keras.layers.Input(shape=(indexes.shape[1],),
                                         dtype=tf.float32, name='InputLayer')
-    logger.info("Adding Radial distortion layer")
-    radial_distortion_layer = RDCompleteLayer(name='RDistortionLayer')(input_layer)
-    logger.info("Adding Idx2Pixel layer")
+    shift_layer = ShiftLayer(name='ShiftLayer')(input_layer)
+    scale_layer = ScaleLayer(name='ScaleLayer')(shift_layer)
+    rotation_layer = RotationLayer(name='RotationLayer')(scale_layer)
+    radial_distortion_layer = RDCompleteLayer(name='RDistortionLayer')(rotation_layer)
+    # radial_distortion_layer = RDistortionLayer(name='RDistortionLayer')(rotation_layer)
+    # radial_distortion_layer_2 = RDistortionLayer2(name='RDistortionLayer2')(radial_distortion_layer)
+    # radial_distortion_layer_3 = RDistortionLayer3(name='RDistortionLayer3')(radial_distortion_layer_2)
     layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer)
 
-    for layer_idx in range(len(layers)):
-        logger.info('Adding dense layer, width =', layers[layer_idx])
-        layer = tf.keras.layers.Dense(layers[layer_idx],
-                                      activation='sigmoid',
-                                      name='Dense' + str(layer_idx))(layer)
-    logger.info('Adding ReLU output layer, width =', outputs.shape[1])
-    output_layer = tf.keras.layers.Dense(outputs.shape[1], name='Output', activation='sigmoid')(layer)
-    # output_layer = tf.keras.layers.ReLU(max_value=1, name='Output', trainable=False)(layer)
+    # TODO: Add InformationGain layers here when necessary
+    print('Adding ReLU output layer, width =', outputs.shape[1])
+    output_layer = tf.keras.layers.ReLU(max_value=1, name='Output', trainable=False)(layer)
     model = tf.keras.models.Model(inputs=input_layer, outputs=output_layer)
-
-    for layer in model.layers:
-        print(layer.name)
 
     # compile model
     start_time = time()
@@ -114,67 +116,94 @@ def __train_networks(inputs,
                   )
     # Set initial transformation as identity
     elapsed_time = time() - start_time
-    logger.info("Compiling model took {:.4f}'s.".format(elapsed_time))
+    print("Compiling model took {:.4f}'s.".format(elapsed_time))
 
     # train model
     start_time = time()
-    # TODO: better names for stages
     tf.compat.v1.keras.backend.get_session().run(tf.compat.v1.global_variables_initializer())
 
-    for stage_no, stage in enumerate(stages):
-        stage_params = stage['type'].split('_')
-
-        if stage_params[0] == 'adam':
-            opt_type = 'optimizer'
-            opt = build_optimizer(config[opt_type], config["batch_size"])
-        elif stage_params[0] == 'sgd':
-            opt_type = 'refiner'
-            opt = build_refining_optimizer(config[opt_type])
-
-        if stage_params[1] == 'rd':
-            targ = "rd"
+    model.layers[1].set_weights([np.array([0, 0])])  # shift
+    model.layers[2].set_weights([np.array([0, 0])])  # scale
+    model.layers[3].set_weights([np.array([0])])  # rotation
+    # model.load_weights(MODEL_FILE)
+    # TODO: better names for stages
+    config = get_config()
+    for stage in stages:
+        if stage['type'] == 'blur':
+            output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
+            __set_train_registration(model, True)
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        elif stage['type'] == 'refine':
             output = outputs
+            __set_train_registration(model, True, target="shift")
+            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
+        elif stage['type'] == 'polish':
+            output = outputs
+            __set_train_registration(model, True)
+            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        else:
+            stage_params = stage['type'].split('_')
 
-        __set_train_registration(model, True, target=targ)
-        model.compile(loss='mean_squared_error', optimizer=opt, metrics=['mean_squared_error'])
+            if stage_params[0] == 'adam':
+                opt_type = 'optimizer'
+                opt = build_optimizer(config["train"][opt_type], config["train"]["batch_size"])
+            elif stage_params[0] == 'sgd':
+                opt_type = 'refiner'
+                opt = build_refining_optimizer(config["train"][opt_type])
+
+            if stage_params[1] == 'rd':
+                targ = "rd"
+                output = outputs
+
+            __set_train_registration(model, True, target=targ)
+            model.compile(loss='mean_squared_error', optimizer=opt, metrics=['mean_squared_error'])
 
         reset_visible(output)
         output = output[selection, :]
-
+        # shift_metric = ShiftMetrics()
+        # scale_metric = ScaleMetrics()
+        # rotation_metric = RotationMetrics()
+        # distortion_metric = DistortionMetrics()
         distortion_metric = RDMetrics()
 
-        intermezzo = InterPredictCallback(20, f"/Users/gimli/tmp/igre/imgs/{stage_no}", inputs,
-                                          (reg_layer_data.shape[0], reg_layer_data.shape[1], 1))
-
+        # mcp_save = ModelCheckpoint(MODEL_FILE,
+        #                            save_best_only=True, monitor='val_loss', mode='min')
+        checkpoint_filepath = MODEL_FILE
         model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-            filepath=MODEL_FILE,
+            filepath=checkpoint_filepath,
             save_weights_only=True,
             monitor='val_loss',
             mode='min',
             save_best_only=True)
+        # lr_reduction = ReduceLROnPlateau(monitor='val_loss', factor=0.9, patience=100, verbose=0, mode='auto',
+        #                                  min_delta=0.0001, cooldown=0, min_lr=0)
+
+        log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+        callbacks = [distortion_metric, tensorboard_callback,
+                     model_checkpoint_callback]
 
         history = model.fit(indexes,
                             output,
                             epochs=stage['epochs'],
                             validation_split=0.2,
-                            verbose=0,
-                            callbacks=[TensorBoard(
-                                log_dir="/Users/gimli/tmp/igre/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
-                                histogram_freq=1), distortion_metric, model_checkpoint_callback],  # intermezzo],
+                            verbose=1,
+                            callbacks=[distortion_metric,
+                                       model_checkpoint_callback
+                                       ],
                             batch_size=batch_size
                             )
 
-        coef_1 = [x[0][0] * config["layer_normalization"]["radial_distortion"]
-                  for x in distortion_metric.bias_history]
-        coef_2 = [x[1][0] * config["layer_normalization"]["radial_distortion_2"]
-                  for x in distortion_metric.bias_history]
-        coef_3 = [x[2][0] * config["layer_normalization"]["radial_distortion_3"]
-                  for x in distortion_metric.bias_history]
+        coef_1 = [x[0][0] * config["layer_normalization"]["radial_distortion"] for x in distortion_metric.bias_history]
+        coef_2 = [x[1][0] * config["layer_normalization"]["radial_distortion_2"] for x in
+                  distortion_metric.bias_history]
+        coef_3 = [x[2][0] * config["layer_normalization"]["radial_distortion_3"] for x in
+                  distortion_metric.bias_history]
         plt.plot(coef_1, label="1")
         plt.plot(coef_2, label="2")
         plt.plot(coef_3, label="3")
 
-        #model.load_weights(MODEL_FILE)
+        model.load_weights(checkpoint_filepath)
 
         plt.title("Transformation %f %f %f " % (coef_1[-1], coef_2[-1], coef_3[-1]))
         plt.legend()
@@ -183,19 +212,18 @@ def __train_networks(inputs,
     elapsed_time = time() - start_time
     num_epochs = len(history.history['loss'])
 
-    logger.info("{:.4f}'s time per epoch. Epochs:".format(elapsed_time / num_epochs), num_epochs, sep="")
-    logger.info("Total time {:.4f}'s".format(elapsed_time))
+    print("{:.4f}'s time per epoch. Epochs:".format(elapsed_time / num_epochs), num_epochs, sep="")
+    print("Total time {:.4f}'s".format(elapsed_time))
 
     # calculate gain and save best model so far
-    model.load_weights(MODEL_FILE)
+    model.load_weights(checkpoint_filepath)
 
-    # calculate gain and save best model so far
     gain = abs(outputs[selection, :] - model.predict(indexes, batch_size=batch_size)) / (outputs.shape[0] *
                                                                                          outputs.shape[1])
     information_gain_max = gain.flatten().max()
-    logger.info('Gain: {:1.4e}'.format(information_gain_max))
+    print('Gain: {:1.4e}'.format(information_gain_max))
 
-    return model, history, (coef_1, coef_2, coef_3)
+    return model, history, None
 
 
 def __set_train_registration(model, value, target="registration"):

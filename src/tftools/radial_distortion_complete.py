@@ -2,6 +2,7 @@ import tensorflow as tf
 from src.tftools.custom_constraint import TanhConstraint
 from src.config.tools import get_config
 import src.config.image_info as ii
+import sys
 
 
 class RDCompleteLayer(tf.keras.layers.Layer):
@@ -28,6 +29,7 @@ class RDCompleteLayer(tf.keras.layers.Layer):
 
     def call(self, coords, **kwargs):
         # x' = x_c + (1 + c_1*r^2 + c_2*r^4 + c_3*r^6)*(x - x_c)
+        tf.print(coords, output_stream=sys.stderr)
         config = get_config()
         w = ii.image.width - 1
         h = ii.image.height - 1
@@ -37,17 +39,20 @@ class RDCompleteLayer(tf.keras.layers.Layer):
             crop_w = config["crop"]["left_top"]["y"]
             crop_h = config["crop"]["left_top"]["x"]
 
-        coords_norm = tf.subtract(tf.divide(tf.multiply(tf.add(coords, tf.constant([crop_h, crop_w], dtype=tf.float32)),
-                                                        2.), tf.constant([h, w], dtype=tf.float32)), [1., 1.])
+        coords_norm = tf.subtract(
+            tf.divide(
+                tf.multiply(
+                    tf.add(coords, tf.constant([crop_h, crop_w], dtype=tf.float32)),
+                    2.
+                ), tf.constant([h, w], dtype=tf.float32)
+            ), [1., 1.]
+        )
         radius = tf.sqrt(tf.add(tf.pow(tf.subtract(coords_norm[:, 0], ii.image.c_x), 2),
                                 tf.pow(tf.subtract(coords_norm[:, 1], ii.image.c_y), 2)))
-        k1 = tf.multiply(self.k1[0], config["layer_normalization"]["radial_distortion"])
-        k2 = tf.multiply(self.k2[0], config["layer_normalization"]["radial_distortion_2"])
-        k3 = tf.multiply(self.k3[0], config["layer_normalization"]["radial_distortion_3"])
 
-        distortion = tf.add(tf.add(tf.add(tf.multiply(k1, tf.pow(radius, 2)),
-                                          tf.multiply(k2, tf.pow(radius, 4))),
-                                   tf.multiply(k3, tf.pow(radius, 6))),
+        distortion = tf.add(tf.add(tf.add(tf.multiply(self.k1, tf.pow(radius, 2)),
+                                          tf.multiply(self.k2, tf.pow(radius, 4))),
+                                   tf.multiply(self.k3, tf.pow(radius, 6))),
                             1)
 
         distortion = tf.reshape(tf.tile(distortion, [2]), [tf.shape(distortion)[0], 2])
@@ -58,4 +63,5 @@ class RDCompleteLayer(tf.keras.layers.Layer):
                                                                tf.constant([h, w], dtype=tf.float32)), 2.),
                                          tf.constant([crop_h, crop_w], dtype=tf.float32))
 
+        tf.print(coords_transformed, output_stream=sys.stderr)
         return coords_transformed

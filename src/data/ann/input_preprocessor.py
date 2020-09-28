@@ -37,6 +37,13 @@ def training_batch_selection_affine(train_set_size, input_dims):
     return selection
 
 
+def img2coords(shape):
+    xx, yy = np.meshgrid(range(shape[1]), range(shape[0]))
+    return np.stack([yy.reshape(-1), xx.reshape(-1)],
+        axis=1
+    )
+
+
 def pixels_for_training_radial(train_set_size, shape):
     r = np.array([shape[0] * 0.5, shape[1] * 0.5])
     a_max2 = np.power(r[0], 2)
