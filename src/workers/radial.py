@@ -1,10 +1,7 @@
-from src.tftools.idx2pixel_layer import Idx2PixelLayer
 from tensorflow.keras.callbacks import TensorBoard
-from src.tftools.shift_layer import ShiftLayer
-from src.tftools.scale_layer import ScaleLayer
-from src.tftools.rotation_layer import RotationLayer
+from src.tftools.radial_distortion_complete import RDCompleteLayer
 from src.logging.verbose import Verbose
-from src.data.ann.input_preprocessor import training_batch_selection_affine, blur_preprocessing
+from src.data.ann.input_preprocessor import pixels_for_training_radial, training_batch_selection
 import tensorflow as tf
 from time import time
 import numpy as np
@@ -16,7 +13,11 @@ import yaml
 import matplotlib.pyplot as plt
 import datetime
 from src.tftools.callbacks.inter_predict import InterPredictCallback
+from src.tftools.idx2pixel_layer import Idx2PixelLayer, reset_visible
+from src.tftools.transform_metric import RDMetrics
 
+
+MODEL_FILE = "best_model.tmp.h5"
 logger = logging.getLogger()
 
 
@@ -32,18 +33,18 @@ def __normalize_img(img):
 
 def find_tform(target, moving):
     """
-    Expected input are two grayscale images with max scale difference 10%, rotated by max 4° and shifted
-    not more than 50px. Output is estimated scale, rotation and shift and computed error for such
-    transformation
+    Expected input are two grayscale images with limited radial distortion.
+    Output is estimated k1, k2, k3 according to Brown Conrady model.
+    @see https://www.asprs.org/wp-content/uploads/pers/1966journal/may/1966_may_444-462.pdf
     :param target: ndarray
         image with the object position to fit
     :param moving:
         image which we would like to transform
-    :return: [float, float, [float, float], float]
-        scale, rotation, shift, error
+    :return: [float, float, float]
+        k1, k2 and k3 for radial distortion
     """
-    inputs = np.indices((moving.shape[0], moving.shape[1])).reshape(2, -1).transpose().astype(np.float32)
-    __run(inputs, __normalize_img(target), __normalize_img(moving))
+    coords = np.indices((moving.shape[0], moving.shape[1])).reshape(2, -1).transpose().astype(np.float32)
+    __run(coords, __normalize_img(target), __normalize_img(moving))
 
 
 def __train_networks(inputs,
@@ -81,31 +82,29 @@ def __train_networks(inputs,
     """
     Verbose.print('Selecting ' + str(train_set_size) + ' samples randomly for use by algorithm.')
 
-    selection = training_batch_selection_affine(train_set_size, reg_layer_data.shape)
-    indexes = inputs[selection, :]
+    indexes = pixels_for_training_radial(train_set_size, reg_layer_data)
 
     # define model
     logger.info('Adding input layer, width =', indexes.shape[1])
     input_layer = tf.keras.layers.Input(shape=(indexes.shape[1],),
                                         dtype=tf.float32, name='InputLayer')
-    logger.info("Adding shift layer")
-    shift_layer = ShiftLayer(name='ShiftLayer')(input_layer)
-    logger.info("Adding Scale layer")
-    scale_layer = ScaleLayer(name='ScaleLayer')(shift_layer)
-    logger.info("Adding rotation layers")
-    rotation_layer = RotationLayer(name='RotationLayer')(scale_layer)
-    # shear_layer = ShearLayer(name='ShearLayer')(rotation_layer)
+    logger.info("Adding Radial distortion layer")
+    radial_distortion_layer = RDCompleteLayer(name='RDistortionLayer')(input_layer)
     logger.info("Adding Idx2Pixel layer")
-    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(rotation_layer)
+    layer = Idx2PixelLayer(visible=reg_layer_data, name='Idx2PixelLayer')(radial_distortion_layer)
 
     for layer_idx in range(len(layers)):
         logger.info('Adding dense layer, width =', layers[layer_idx])
         layer = tf.keras.layers.Dense(layers[layer_idx],
-                                      activation='sigmoid', name='Dense' + str(layer_idx))(layer)
+                                      activation='sigmoid',
+                                      name='Dense' + str(layer_idx))(layer)
     logger.info('Adding ReLU output layer, width =', outputs.shape[1])
     output_layer = tf.keras.layers.Dense(outputs.shape[1], name='Output', activation='sigmoid')(layer)
     # output_layer = tf.keras.layers.ReLU(max_value=1, name='Output', trainable=False)(layer)
     model = tf.keras.models.Model(inputs=input_layer, outputs=output_layer)
+
+    for layer in model.layers:
+        print(layer.name)
 
     # compile model
     start_time = time()
@@ -121,41 +120,38 @@ def __train_networks(inputs,
     start_time = time()
     # TODO: better names for stages
     tf.compat.v1.keras.backend.get_session().run(tf.compat.v1.global_variables_initializer())
-    model.layers[1].set_weights([np.array([0, 0])])  # shift
-    model.layers[2].set_weights([np.array([0, 0])])  # scale
-    model.layers[3].set_weights([np.array([0])])  # rotation
-    # model.layers[4].set_weights([np.array([0])])  # shear_x
-
-    bias_history = {
-        "shift_x": [],
-        "shift_y": [],
-        "rotation": [],
-        "scale_x": [],
-        "scale_y": []
-    }
 
     for stage_no, stage in enumerate(stages):
-        if stage['type'] == 'blur':
-            output = blur_preprocessing(outputs, reg_layer_data.shape, stage['params'])
-            __set_train_registration(model, True)
-            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
-        elif stage['type'] == 'refine':
-            output = outputs
-            __set_train_registration(model, True, target="shift")
-            model.compile(loss='mean_squared_error', optimizer=refiner, metrics=['mean_squared_error'])
-        elif stage["type"] == "mutual_init":
-            __set_train_registration(model, False)
-            output = blur_preprocessing(outputs, reg_layer_data.shape, stage['blur'])
-            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
-        else:  # stage['type'] == 'polish':
-            output = outputs
-            __set_train_registration(model, True, target="all")
-            model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
+        stage_params = stage['type'].split('_')
 
+        if stage_params[0] == 'adam':
+            opt_type = 'optimizer'
+            opt = build_optimizer(config[opt_type], config["batch_size"])
+        elif stage_params[0] == 'sgd':
+            opt_type = 'refiner'
+            opt = build_refining_optimizer(config[opt_type])
+
+        if stage_params[1] == 'rd':
+            targ = "rd"
+            output = outputs
+
+        __set_train_registration(model, True, target=targ)
+        model.compile(loss='mean_squared_error', optimizer=opt, metrics=['mean_squared_error'])
+
+        reset_visible(output)
         output = output[selection, :]
+
+        distortion_metric = RDMetrics()
 
         intermezzo = InterPredictCallback(20, f"/Users/gimli/tmp/igre/imgs/{stage_no}", inputs,
                                           (reg_layer_data.shape[0], reg_layer_data.shape[1], 1))
+
+        model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+            filepath=MODEL_FILE,
+            save_weights_only=True,
+            monitor='val_loss',
+            mode='min',
+            save_best_only=True)
 
         history = model.fit(indexes,
                             output,
@@ -164,11 +160,24 @@ def __train_networks(inputs,
                             verbose=0,
                             callbacks=[TensorBoard(
                                 log_dir="/Users/gimli/tmp/igre/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
-                                histogram_freq=1), intermezzo],
+                                histogram_freq=1), distortion_metric, model_checkpoint_callback],  # intermezzo],
                             batch_size=batch_size
                             )
-        plt.plot(history.history["loss"])
-        plt.title(f"{stage_no} {stage['type']}")
+
+        coef_1 = [x[0][0] * config["layer_normalization"]["radial_distortion"]
+                  for x in distortion_metric.bias_history]
+        coef_2 = [x[1][0] * config["layer_normalization"]["radial_distortion_2"]
+                  for x in distortion_metric.bias_history]
+        coef_3 = [x[2][0] * config["layer_normalization"]["radial_distortion_3"]
+                  for x in distortion_metric.bias_history]
+        plt.plot(coef_1, label="1")
+        plt.plot(coef_2, label="2")
+        plt.plot(coef_3, label="3")
+
+        #model.load_weights(MODEL_FILE)
+
+        plt.title("Transformation %f %f %f " % (coef_1[-1], coef_2[-1], coef_3[-1]))
+        plt.legend()
         plt.show()
 
     elapsed_time = time() - start_time
@@ -178,12 +187,15 @@ def __train_networks(inputs,
     logger.info("Total time {:.4f}'s".format(elapsed_time))
 
     # calculate gain and save best model so far
+    model.load_weights(MODEL_FILE)
+
+    # calculate gain and save best model so far
     gain = abs(outputs[selection, :] - model.predict(indexes, batch_size=batch_size)) / (outputs.shape[0] *
                                                                                          outputs.shape[1])
     information_gain_max = gain.flatten().max()
     logger.info('Gain: {:1.4e}'.format(information_gain_max))
 
-    return model, history, bias_history
+    return model, history, (coef_1, coef_2, coef_3)
 
 
 def __set_train_registration(model, value, target="registration"):
@@ -193,24 +205,19 @@ def __set_train_registration(model, value, target="registration"):
     :param model: ANN
     :param value: boolean
     """
-    if target == "registration":
+    if target == "all":
+        for layer in model.layers:
+            layer.trainable = value
+    elif target == "rd":
         model.layers[1].trainable = value
         model.layers[2].trainable = value
         model.layers[3].trainable = value
-        model.layers[5].trainable = (not value)
-        model.layers[6].trainable = (not value)
-    elif target == "all":
-        model.layers[1].trainable = value
-        model.layers[2].trainable = value
-        model.layers[3].trainable = value
-        model.layers[5].trainable = value
-        model.layers[6].trainable = value
-    elif target == "shift":
-        model.layers[1].trainable = value
+    elif target == "mutual_init":
+        model.layers[1].trainable = not value
         model.layers[2].trainable = not value
         model.layers[3].trainable = not value
-        model.layers[5].trainable = not value
-        model.layers[6].trainable = not value
+        for i in range(4, len(model.layers)):
+            model.layers[i].trainable = value
 
 
 def __information_gain(coords,
@@ -260,7 +267,7 @@ def __information_gain(coords,
 
 
 def __run(inputs, outputs, moving):
-    with open("input/config.yaml", "rt", encoding='utf-8') as config_file:
+    with open("input/radial-config.yaml", "rt", encoding='utf-8') as config_file:
         config = yaml.load(config_file, Loader=yaml.Loader)
         init_config(config)
 
@@ -280,32 +287,29 @@ def __run(inputs, outputs, moving):
     model.summary()
 
     layer_dict = dict([(layer.name, layer) for layer in model.layers])
-    bias = []
-    bias.append(layer_dict['ShiftLayer'].get_weights())
-    Verbose.print("Shift: " + colored(str((bias[-1][0]) * config["layer_normalization"]["shift"]), "green"),
-                  Verbose.always)
 
-    bias.append(layer_dict['RotationLayer'].get_weights())
-    Verbose.print(
-        "Rotation: " + colored(str(bias[-1][0] * config["layer_normalization"]["rotation"] * 180 / np.pi), "green"),
-        Verbose.always)
+    k1 = layer_dict['RDistortionLayer'].get_weights()[0][0] * config["layer_normalization"]["radial_distortion"]
+    k2 = layer_dict['RDistortionLayer'].get_weights()[1][0] * config["layer_normalization"]["radial_distortion_2"]
+    k3 = layer_dict['RDistortionLayer'].get_weights()[2][0] * config["layer_normalization"]["radial_distortion_3"]
 
-    bias.append(layer_dict['ScaleLayer'].get_weights())
-    Verbose.print("Scale: " + colored(str(bias[-1][0] * config["layer_normalization"]["scale"] + 1), "green"),
-                  Verbose.always)
+    exp_k1 = -k1
+    exp_k2 = 3 * k1 * k1 - k2
+    exp_k3 = -12 * k1 * k1 * k1 + 8 * k1 * k2 - k3
 
-    # bias = layer_dict['ShearLayer'].get_weights()
-    # Verbose.print("Shear: " + colored(str(bias[0]*0.1), "green"), Verbose.always)
+    Verbose.print("coefs computed: " + colored(str([k1, k2, k3]), "green"), Verbose.always)
+    Verbose.print("coefs inverse: " + colored(str([exp_k1, exp_k2, exp_k3]), "green"), Verbose.always)
+
+    bias = [k1, k2, k3]
 
     plt.figure(figsize=(15, 8))
     ax = plt.subplot(1, 3, 1)
-    ax.imshow(extrapolation[:,:,0], cmap="gray")
+    ax.imshow(extrapolation[:, :, 0], cmap="gray")
     ax.set_title("Predicted")
     ax = plt.subplot(1, 3, 2)
-    ax.imshow(outputs[:,:,0], cmap="gray")
+    ax.imshow(outputs[:, :, 0], cmap="gray")
     ax.set_title("Expected output")
     ax = plt.subplot(1, 3, 3)
-    ax.imshow(ig[:,:,0], cmap="Reds")
+    ax.imshow(ig[:, :, 0], cmap="Reds")
     ax.set_title("Difference between predicted and ground truth")
     plt.show()
 

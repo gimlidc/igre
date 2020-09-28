@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-from src.config.tools import get_config
-import src.config.image_info as ii
 from scipy.interpolate import RectBivariateSpline
 
 
@@ -69,55 +67,63 @@ class Transformation:
         self.k2 = k2
         self.k3 = k3
 
-    def apply_distortion(self, coordinates):
+    @staticmethod
+    def normalize_coordinates(coordinates, width=None, height=None):
         if len(coordinates) // 2 == 1:
             coords = np.reshape(np.asarray(coordinates), (1, 2))
         else:
             coords = np.asarray(coordinates)
 
-        config = get_config()
-        w = ii.image.width - 1
-        h = ii.image.height - 1
-        crop_w = 0
-        crop_h = 0
-        if "crop" in config:
-            crop_w = config["crop"]["left_top"]["y"]
-            crop_h = config["crop"]["left_top"]["x"]
+        out = np.zeros(coords.shape)
+        if width is None:
+            width = np.max(coords[:, 0])
+        if height is None:
+            height = np.max(coords[:, 1])
+        out[:, 0] = 2 * (coords[:, 0] - width/2) / width
+        out[:, 1] = 2 * (coords[:, 1] - height / 2) / height
+        return out, np.array(width + 1, height + 1)
+
+    @staticmethod
+    def denormalize_coordinates(coordinates, shape):
+        return coordinates * (shape-1)/2 + (shape-1)/2
+
+    def apply_distortion(self, coordinates):
+        coords, shape = self.normalize_coordinates(coordinates)
 
         # Compute standard radial distortion, on normalized coordinates [-1, 1],
         # function of even powers of radii (distance pixel - center of distortion) and coefficients of the distortion
-        coords_norm = np.divide(np.multiply(coords + [crop_h, crop_w], 2), [h, w]) - [1., 1.]
-        radii = np.sqrt(np.power(coords_norm[:, 0] - ii.image.c_x, 2) + np.power(coords_norm[:, 1] - ii.image.c_y, 2))
+        radii = np.sqrt(np.power(coords[:, 0] - self.cx, 2) + np.power(coords[:, 1] - self.cy, 2))
         L = np.multiply(np.power(radii, 2), self.k1) + \
             np.multiply(np.power(radii, 4), self.k2) + \
             np.multiply(np.power(radii, 6), self.k3) + 1.
-        transformed_coordinates_x = ii.image.c_x + np.multiply(coords_norm[:, 0] - ii.image.c_x, L)
-        transformed_coordinates_y = ii.image.c_y + np.multiply(coords_norm[:, 1] - ii.image.c_y, L)
-        transformed_coordinates = np.vstack((transformed_coordinates_x, transformed_coordinates_y))
-        transformed_coordinates = np.transpose(transformed_coordinates)
-        transformed_coordinates = np.divide(np.multiply(transformed_coordinates + [1., 1.],
-                                                        [h, w]), 2) - [crop_h, crop_w]
 
-        return transformed_coordinates
+        # Perform the transformation
+        out = np.zeros(coords.shape)
+        out[:, 0] = self.cx + np.multiply(coords[:, 0] - self.cx, L)
+        out[:, 1] = self.cy + np.multiply(coords[:, 1] - self.cy, L)
 
-    @staticmethod
-    def affine(img, scale, rotation, shift):
-        a = np.array([1/scale, 0.])
-        b = np.array([0., 1/scale])
-        c = np.array([-shift[0], -shift[1]])
-        d = np.array([0., 0.])
-        e = np.array([0., 0.])
-        tform = Transformation(a, b, c, d, e)
-        tform.set_rotation(rotation)
+        return self.denormalize_coordinates(out, shape)
+
+    def apply_tform(self, img):
         xx, yy = np.meshgrid(range(img.shape[0]), range(img.shape[1]))
         coords = np.stack([xx, yy], axis=2).reshape(-1, 2)
-        coords = tform.transform(coords)
+        coords = self.transform(coords)
+        coords = self.apply_distortion(coords)
         spline = RectBivariateSpline(range(img.shape[0]), range(img.shape[1]), img)
         return spline(coords[:, 0], coords[:, 1], grid=False).reshape(img.shape[1], img.shape[0]).T
 
+    @staticmethod
+    def affine(img, scale, rotation, shift):
+        tform = Transformation.build_affine(scale, rotation, shift)
+        return tform.apply_tform(img)
 
     @staticmethod
-    def build(scale, rotation, shift):
+    def radial(img, cx, cy, k1, k2, k3):
+        tform = Transformation.build_radial(cx, cy, k1, k2, k3)
+        return tform.apply_tform(img)
+
+    @staticmethod
+    def build_affine(scale, rotation, shift):
         a = np.array([1 / scale, 0.])
         b = np.array([0., 1 / scale])
         c = np.array([-shift[0], -shift[1]])
@@ -127,6 +133,11 @@ class Transformation:
         tform.set_rotation(rotation)
         return tform
 
+    @staticmethod
+    def build_radial(cx, cy, k1, k2, k3):
+        tform = Transformation()
+        tform.set_distortion(cx, cy, k1, k2, k3)
+        return tform
 
     def __str__(self):
         return str(
@@ -134,5 +145,8 @@ class Transformation:
             f"{self.a[1]:0.2f}x + {self.b[1]:0.2f}y + {self.c[1]:0.2f}\n"
             f"--------------------\t--------------------\n"
             f"{self.d[0]:0.2f}x + {self.e[0]:0.2f}y + 1\t"
-            f"{self.d[0]:0.2f}x + {self.e[0]:0.2f}y + 1\t"
+            f"{self.d[0]:0.2f}x + {self.e[0]:0.2f}y + 1\n"
+            f"\n\n"
+            f"x + (x - {self.cx}) * ({self.k1}r^2 + {self.k2}r^4 + {self.k3}r^6)\n"
+            f"y + (y - {self.cy}) * ({self.k1}r^2 + {self.k2}r^4 + {self.k3}r^6)"
         )

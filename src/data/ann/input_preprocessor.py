@@ -37,6 +37,38 @@ def training_batch_selection_affine(train_set_size, input_dims):
     return selection
 
 
+def pixels_for_training_radial(train_set_size, shape):
+    r = np.array([shape[0] * 0.5, shape[1] * 0.5])
+    a_max2 = np.power(r[0], 2)
+    b_max2 = np.power(r[1], 2)
+
+    if np.pi * r[0] * r[1] < 2 * train_set_size:
+        a_min2 = 0.01
+        b_min2 = 0.01
+    else:
+        k = train_set_size * 2 / (np.pi * r[0] * r[1])
+        a_min2 = np.power((1-k) * r[0], 2)
+        b_min2 = np.power((1-k) * r[1], 2)
+
+    coords_available = np.stack(
+        np.meshgrid(range(-shape[0]//2, shape[0]//2 + 1),
+                    range(-shape[1]//2, shape[1]//2 + 1)),
+        axis=2
+    ).reshape(-1, 2)
+
+    train_selection = coords_available[
+        np.logical_and(
+            np.sum(np.power(coords_available, 2) / np.array([a_max2, b_max2]), axis=1) < 1,
+            np.sum(np.power(coords_available, 2) / np.array([a_min2, b_min2]), axis=1) > 1
+        ), :
+    ]
+
+    selection = np.random.permutation(
+        train_selection + np.array([shape[0] // 2, shape[1] // 2])
+    )
+    return selection[:train_set_size, :]
+
+
 def training_batch_selection(train_set_size, input_img):
     """
     Selects data with respect to the maximal expected distortion so that we have coords

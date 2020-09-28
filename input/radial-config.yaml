@@ -1,0 +1,36 @@
+verbose_level: 1
+layers:
+  - 25
+  - 25
+expected_max_px_misplacement: 15
+inside_part: 150
+outside_part: 15
+layer_normalization:
+  radial_distortion: 0.01
+  radial_distortion_2: 0.01
+  radial_distortion_3: 0.005
+crop:
+  left_top:
+    x: 150
+    y: 150
+  size:
+    height: 650
+    width: 750
+train:
+  batch_size: 2048
+  stages:
+    - type: adam_rd
+      epochs: 500
+    - type: sgd_rd
+      epochs: 500
+  use_gpu: false
+  optimizer:
+    family: "adam"
+    learning_rate: 0.00025
+    beta1: 0.9
+    beta2: 0.999
+  refiner:
+    family: "SGD"
+    learning_rate: 3.0
+    decay: 0.01
+    momentum: 0.99
