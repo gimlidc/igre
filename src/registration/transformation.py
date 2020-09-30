@@ -69,6 +69,13 @@ class Transformation:
 
     @staticmethod
     def normalize_coordinates(coordinates, width=None, height=None):
+        """
+        Shifts incomming coordinates between -1, 1
+        :param coordinates:
+        :param width:
+        :param height:
+        :return:
+        """
         if len(coordinates) // 2 == 1:
             coords = np.reshape(np.asarray(coordinates), (1, 2))
         else:
@@ -81,14 +88,14 @@ class Transformation:
             height = np.max(coords[:, 1])
         out[:, 0] = 2 * (coords[:, 0] - width/2) / width
         out[:, 1] = 2 * (coords[:, 1] - height / 2) / height
-        return out, np.array(width + 1, height + 1)
+        return out, np.array([width + 1, height + 1])
 
     @staticmethod
     def denormalize_coordinates(coordinates, shape):
         return coordinates * (shape-1)/2 + (shape-1)/2
 
-    def apply_distortion(self, coordinates):
-        coords, shape = self.normalize_coordinates(coordinates)
+    def apply_distortion(self, coordinates, width=None, height=None):
+        coords, shape = self.normalize_coordinates(coordinates, width, height)
 
         # Compute standard radial distortion, on normalized coordinates [-1, 1],
         # function of even powers of radii (distance pixel - center of distortion) and coefficients of the distortion

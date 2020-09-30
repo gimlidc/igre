@@ -10,7 +10,7 @@ class Idx2PixelLayer(tf.keras.layers.Layer):
         :param visible: one dimension of visible image (for this dimension [x,y] will be computed)
         """
         super(Idx2PixelLayer, self).__init__(**kwargs)
-        self.visible = tf.constant(visible, dtype=tf.float32)
+        self.visible = tf.constant(visible, dtype=tf.float64)
         global global_visible
         global_visible = self.visible
 
@@ -20,7 +20,7 @@ class Idx2PixelLayer(tf.keras.layers.Layer):
 
 def reset_visible(stage_data):
     global global_visible
-    global_visible = tf.constant(stage_data.copy(), dtype=tf.float32)
+    global_visible = tf.constant(stage_data.copy(), dtype=tf.float64)
 
 
 @tf.custom_gradient
@@ -56,7 +56,7 @@ def linear_interpolation(coords):
             bottom_left                                bottom_right
     """
     # multiply gradient by factor to slow down learning of 'bias'
-    grad_multiplier = tf.constant(1, dtype=tf.float32)
+    grad_multiplier = tf.constant(1, dtype=tf.float64)
     visible = global_visible
 
     # ensure that the coordinates are in range [1, max-2] so we can take 2x2 neighbourhood of the coord in the Jacobian
@@ -65,7 +65,7 @@ def linear_interpolation(coords):
     # 0 - 400
     coords = tf.subtract(coords, 1)
     # -1 - 399
-    coords = tf.math.mod(coords, tf.subtract(tf.cast(visible.shape.as_list()[:-1], dtype=tf.float32), 4))
+    coords = tf.math.mod(coords, tf.subtract(tf.cast(visible.shape.as_list()[:-1], dtype=tf.float64), 4))
     # 0 - (401-4) 397
     coords = tf.add(coords, 1)
     # 1 - 398
@@ -75,7 +75,7 @@ def linear_interpolation(coords):
     idx_low = tf.floor(coords)
 
     # offset of input coordinates from top-left point
-    delta = tf.cast(tf.subtract(coords, idx_low), dtype=tf.float32)
+    delta = tf.cast(tf.subtract(coords, idx_low), dtype=tf.float64)
     # coords are the size of (batch, 2), delta as well
 
     top_left = tf.gather_nd(visible, tf.cast(idx_low, tf.int32))
@@ -131,8 +131,10 @@ def linear_interpolation(coords):
         """ This method should return tensor of gradients [batch_size, 6]"""
         return tf.multiply(tf.einsum("ijk,ik->ij", jacob, dy), grad_multiplier)
 
-    coords_off_boundary = tf.greater(tf.cast(coords, dtype=tf.float32), tf.cast(visible.shape[:-1], dtype=tf.float32))
+    coords_off_boundary = tf.greater(tf.cast(coords, dtype=tf.float64), tf.cast(visible.shape[:-1], dtype=tf.float64))
     boundary_condition = tf.logical_or(coords_off_boundary[:, 0], coords_off_boundary[:, 0])
-    masked = tf.where(boundary_condition, tf.zeros(tf.shape(interpolation)), interpolation)
+    masked = tf.where(boundary_condition,
+                      tf.zeros(tf.shape(interpolation), dtype=tf.float64),
+                      interpolation)
 
     return masked, grad

@@ -14,8 +14,8 @@ layer_normalization:
   radial_distortion_3: 1
 crop:
   left_top:
-    x: 150
-    y: 150
+    x: 0
+    y: 0
   size:
     height: 650
     width: 750
@@ -34,6 +34,6 @@ train:
     beta2: 0.999
   refiner:
     family: "SGD"
-    learning_rate: 3.0
+    learning_rate: 0.001
     decay: 0.01
     momentum: 0.99
