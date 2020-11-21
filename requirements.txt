@@ -1,6 +1,6 @@
 PyYAML
 jsonschema
-tensorflow
+tensorflow==1.15
 matplotlib
 termcolor
 numpy
