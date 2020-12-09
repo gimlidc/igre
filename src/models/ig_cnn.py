@@ -131,5 +131,6 @@ def ig_cnn_model(def_text,
     layers.append(keras.layers.Dense(units=output_units,
                                      activation='sigmoid'))
 
-    return keras.Sequential(layers=layers, name=f'{name}:{def_text}')
+    return keras.Sequential(layers=layers, name=f'{name}')
+
 
