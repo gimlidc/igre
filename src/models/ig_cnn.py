@@ -286,20 +286,25 @@ def file_check(ctx, param, value):
 
 @click.command()
 @click.option('--image_path',
-              default='/home/karellat/Desktop/igre/data/raw/still_life/sample_22.mat',
+              default='/mnt/c/Users/Tomas Karella/Desktop/igre/data/raw/still_life/sample_22.mat',
+              show_default=True,
               help='Path to matlab multichannel image')
 @click.option('--model_def',
               default='C-25-3-sigmoid-valid,C-25-1-sigmoid-same',
+              show_default=True,
               help='Model defined by string, each layer separated by commas')
 @click.option('--input_size',
               default='3',
+              show_default=True,
               help='The visible spectrum is separated into squares with this size',
               type=int)
 @click.option('--log_name',
               default='C3',
+              show_default=True,
               help='Name of the log dir')
 @click.option('--log_root',
-              default='/home/karellat/Desktop/igre/logs',
+              default='/mnt/c/Users/Tomas Karella/Desktop/igre/logs',
+              show_default=True,
               help='Root dir of logs files')
 def ig_cnn(image_path, model_def, input_size, log_name, log_root):
 
