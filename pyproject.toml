@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "igre"
+version = "1.0.0"
+description = "Tool for processing multimodal images"
+authors = ["Honza Blažek <gimli@matfyz.cz>"]
+license = "MIT"
+packages = [
+    { include = "src/**/*.py"}
+]
+
+[tool.poetry.dependencies]
+python = "3.6"
+numpy = "*"
+scipy = "*"
+tensorflow = "~1.15.0"
+termcolor = "*"
+matplotlib = "*"
+PyYAML = "*"
+opencv-python = "*"
+pydot = "*"
+sklearn = "*"
+scikit-learn = "*"
+jsonschema = "*"
+jupyter = "*"
+notebook = "*"
+ipykernel = "*"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.1"
+awscli = "^1.18.213"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+ig = "src.scripts.igcli:ig"
+crop = "src.scripts:crop"
