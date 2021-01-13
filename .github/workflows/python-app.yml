@@ -26,10 +26,10 @@ jobs:
       uses: actions/cache@v1
       id: cache
       with:
-        path: ~/.virtualenvs
+        path: ~/.cache/pypoetry/virtualenvs
         key: poetry-${{ hashFiles('**/poetry.lock') }}
         restore-keys: |
-          poetry-${{ hashFiles('**/poetry.lock') }}git s
+          poetry-${{ hashFiles('**/poetry.lock') }}
     - name: Poetry install dependencies
       run: poetry install
       if: steps.cache.outputs.cache-hit != 'true'
