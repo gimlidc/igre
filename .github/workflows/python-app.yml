@@ -31,7 +31,7 @@ jobs:
         restore-keys: |
           poetry-${{ hashFiles('**/poetry.lock') }}git s
     - name: Poetry install dependencies
-      run: poetry install
+      run: poetry install --dev
       if: steps.cache.outputs.cache-hit != 'true'
     - name: Test with pytest
       run: pytest
