@@ -3,7 +3,7 @@ import os.path
 
 
 def test_load_all_images():
-    srcdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/test_dir")
+    srcdir = os.path.join("tests", "assets")
     data, metadata = dataset.load_all_images(srcdir)
     assert metadata["resolutions"] == [(125, 140)]
     assert data[0].shape[2] == 2
