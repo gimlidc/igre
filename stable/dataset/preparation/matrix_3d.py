@@ -2,6 +2,7 @@ import scipy.io
 import numpy as np
 import os
 from termcolor import colored
+import imageio
 
 
 def crop(data, left_top_x=None, left_top_y=None, width=None, height=None, rectangle=None, data_key=None, log=None):
@@ -65,3 +66,54 @@ def crop(data, left_top_x=None, left_top_y=None, width=None, height=None, rectan
     elif suffix == "npy":
         np.save(output_file, matrix[x0:x1, y0:y1, :])
     log(colored(f"Output file: {output_file} successfully written.", "green"))
+
+
+def merge_image_files(dir_name, suffix, output, crop, log=print):
+
+    if not os.path.isdir(dir_name):
+        log("ERROR: directory not found")
+
+    imgs = []
+    data_files = sorted(os.listdir(dir_name))
+    log("Loading files ...")
+    for file in data_files:
+        if file[-len(suffix):] == suffix:
+            img = imageio.imread(os.path.join(dir_name, file))
+            if len(img.shape) == 2:
+                img = img.reshape(img.shape + (1,))
+            imgs.append(img)
+            log(f"\t{file} OK, shape: {imgs[-1].shape}")
+
+    shapes = np.array([np.array(img.shape) for img in imgs])
+    size_matches = True
+    for dim_name, dim in zip(["width", "height"], [0, 1]):
+        if np.min(shapes[:,dim]) != np.max(shapes[:,dim]):
+            log(colored(
+                f"Warning: Image {dim_name}s mismatch: {np.min(shapes[:, dim])} "
+                f"in {data_files[np.argmin(shapes[:, dim])]} "
+                f"vs. {np.max(shapes[:, dim])} in {data_files[np.argmax(shapes[:, dim])]}"), color="yellow")
+            if crop:
+                log(colored(f"Data will be cropped to min {dim_name} size."), color="green")
+            else:
+                log(colored(f"Data will be padded with zeros to match max size.", color="green"))
+            size_matches = False
+
+    if crop or size_matches:
+        width = np.min(shapes[:, 0])
+        height = np.min(shapes[:, 1])
+        out = np.zeros((width, height, np.sum(shapes[:, 2])))
+        start_dim = 0
+        for img in imgs:
+            out[:, :, start_dim:start_dim + img.shape[2]] = img[:width, :height, :]
+            start_dim += img.shape[2]
+
+        np.save(output, out)
+    else:  # pad option
+        out = np.zeros((np.max(shapes[:, 0]), np.max(shapes[:, 1]), np.sum(shapes[:, 2])))
+        start_dim = 0
+        for img in imgs:
+            out[:img.shape[0], :img.shape[1], start_dim:start_dim + img.shape[2]] = img
+            start_dim += img.shape[2]
+        np.save(output, out)
+
+    log(colored(f"Data successfully saved into {output} with shape {out.shape}.", color="green"))

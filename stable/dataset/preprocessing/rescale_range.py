@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def rescale_range(values, mn = None, mx = None):
+def rescale_range(values, mn=None, mx=None):
     """A data normalization function.
 
      out = rescaleRange(values) shifts values in range [0,1] linearily.

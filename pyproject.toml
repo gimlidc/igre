@@ -34,8 +34,9 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-ig = "stable.scripts.igcli:ig"
-crop = "stable.scripts:crop"
+ig = "stable.scripts.information_gain:ig"
+crop = "stable.scripts.dataset_preparations:crop"
+joindir = "stable.scripts.dataset_preparations:joindir"
 
 [tool.pytest.ini_options]
 addopts = "-ra -q -cov"

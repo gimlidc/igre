@@ -4,101 +4,15 @@ import numpy as np
 import imageio
 from datetime import datetime
 from termcolor import colored
-from src.models.ig import information_gain
+from stable.information_gain.pixelwise import information_gain
 import scipy.io
-from src.data.rescale_range import rescale_range
+from dataset.preprocessing.rescale_range import rescale_range
 
-
-@click.group(chain=True)
+@click.group()
 def ig():
     pass
 
-
-@click.group(chain=True)
-def datajoin():
-    pass
-
-
-@datajoin.command()
-@click.option(
-    "--output",
-    default="ig_dataset.npy",
-    help="Path to output file where all images will be joined"
-)
-@click.argument(
-    "files",
-    # help="Any number of files to join"
-)
-def datafiles(files):
-    click.echo(f"These files will be joined into ND array: {files}")
-
-
-@datajoin.command()
-@click.option("--suffix", default="png", help="All images in directory with this suffix will be joined.")
-@click.option("--output", default="./ig_dataset.npy", help="Path to generated datastore")
-@click.option("--crop/--pad", default=True)
-@click.argument("dir_name")
-def joindir(dir_name, suffix, output, crop):
-    """
-    Generates one file from all input images. Images are expected in one folder with specified suffix.
-
-    DIR_NAME - The PATH to data source directory
-    """
-    if not os.path.isdir(dir_name):
-        click.echo("ERROR: directory not found")
-
-    imgs = []
-    data_files = sorted(os.listdir(dir_name))
-    click.echo("Loading files ...")
-    for file in data_files:
-        if file[-len(suffix):] == suffix:
-            img = imageio.imread(os.path.join(dir_name, file))
-            if len(img.shape) == 2:
-                img = img.reshape(img.shape + (1,))
-            imgs.append(img)
-            click.echo(f"\t{file} OK, shape: {imgs[-1].shape}")
-
-    shapes = np.array([np.array(img.shape) for img in imgs])
-    size_matches = True
-    for dim_name, dim in zip(["width", "height"], [0, 1]):
-        if np.min(shapes[:,dim]) != np.max(shapes[:,dim]):
-            click.echo(colored(
-                f"Warning: Image {dim_name}s mismatch: {np.min(shapes[:, dim])} "
-                f"in {data_files[np.argmin(shapes[:, dim])]} "
-                f"vs. {np.max(shapes[:, dim])} in {data_files[np.argmax(shapes[:, dim])]}"), color="yellow")
-            if crop:
-                click.echo(colored(f"Data will be cropped to min {dim_name} size."), color="green")
-            else:
-                click.echo(colored(f"Data will be padded with zeros to match max size.", color="green"))
-            size_matches = False
-
-    if crop or size_matches:
-        width = np.min(shapes[:, 0])
-        height = np.min(shapes[:, 1])
-        out = np.zeros((width, height, np.sum(shapes[:, 2])))
-        start_dim = 0
-        for img in imgs:
-            out[:, :, start_dim:start_dim + img.shape[2]] = img[:width, :height, :]
-            start_dim += img.shape[2]
-
-        np.save(output, out)
-    else:  # pad option
-        out = np.zeros((np.max(shapes[:, 0]), np.max(shapes[:, 1]), np.sum(shapes[:, 2])))
-        start_dim = 0
-        for img in imgs:
-            out[:img.shape[0], :img.shape[1], start_dim:start_dim + img.shape[2]] = img
-            start_dim += img.shape[2]
-        np.save(output, out)
-
-    click.echo(colored(f"Data successfully saved into {output} with shape {out.shape}.", color="green"))
-
-
-@click.group()
-def process():
-    pass
-
-
-@process.command()
+@ig.command()
 @click.option(
     "-i",
     "--in-dims",
@@ -185,9 +99,3 @@ def gain(data_file, in_dims, out_dims, layers, output_dir, training_set_size, da
     click.echo(colored(f"Processed files:", "green"))
     [click.echo("\t" + file) for file in outfiles]
     click.echo(colored("successfully written.", "green"))
-
-
-ig = click.CommandCollection(sources=[datajoin, process])
-
-if __name__ == '__main__':
-    ig()

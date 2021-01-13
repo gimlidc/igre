@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import src.data.rescale_range as rr
+import dataset.preprocessing.rescale_range as rr
 
 
 def draw(intensity_cube, metadata=None, modality_indexes=None):
