@@ -34,5 +34,11 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-ig = "src.scripts.igcli:ig"
-crop = "src.scripts:crop"
+ig = "stable.scripts.igcli:ig"
+crop = "stable.scripts:crop"
+
+[tool.pytest.ini_options]
+addopts = "-ra -q -cov"
+testpaths = [
+    "tests"
+]
