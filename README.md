@@ -1,60 +1,19 @@
-Information Gain with Registration
-==============================
+# IGRE project
 
-Information gain toolbox for multimodal dataset processing
+IGRE means Information Gain with REgistration. It is a scientific project originally focused on ART, but with many 
+overlaps to different areas with multimodal datasets
 
-### Metacentrum RUN
+# Smart CLI
 
-0) enable ssh agent
-```bash
-ssh-add
-```
-1) ssh to metacentrum
-```bash
-sshm alfrid
-```
-2) clone repository
-```bash
-git clone git@github.com:gimlidc/igre.git
-```
-3) install aws cli
-```bash
-module add python-3.6.2-gcc
-pip3 install --user awscli
-# Add path to user bin into your .bash_profile
-```
-4) configure aws profile
-```bash
-aws configure --profile igre
-# follow requested ...
-```
-5) sync data from s3
-```bash
-make sync_data_from_s3
-```
-6) run your scripts
-- customize your clusterize-configuration.yml
-- setup directory for outputs into igre/data/processed folder
-- install dependencies
-```bash
-clusterize submit
-```
-7) sync outputs to s3
-```bash
-make sync_data_to_s3
-```
+Igre contains several tools which can be useful for data manipulation or quick overview
+
+- PSD layer exporter
+- Images to hypercube aggregation (*.npy supported)
+- Information gain calculator
+- 3D matrix cropping tool (*.mat and *.npy format supported)
 
 
-### IGRE test
-```bash
-git clone git@github.com:gimlidc/igre
-cd igre
-make sync_data_from_s3
-pipenv run python src/models/igre-test.py
-```
-
-Project Organization
-------------
+## Project organization
 
     ├── LICENSE
     ├── README.md          <- The top-level README for developers using this project.
