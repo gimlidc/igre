@@ -64,7 +64,7 @@ def information_gain(input, target, params=None):
 
 if __name__ == "__main__":
     # Import all necessary libraries
-    import modalities.dir_dataset as dataset
+    import modalities as dataset
     import cv2
     import matplotlib.pyplot as plt
     import rescale_range as rr
