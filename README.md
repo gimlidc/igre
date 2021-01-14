@@ -35,7 +35,8 @@ Igre contains several tools which can be useful for data manipulation or quick o
     │   └── figures        <- Generated graphics and figures to be used in reporting
     │
     ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
-    ├── src                <- Source code for use in this project.
+    ├── stable             <- tools which are handy and stable, move them here from src, write doc, tests and scritps
+    ├── src                <- Experimental codes, anything you want to test and debug (or parametrize).
     │   ├── __init__.py    <- Makes src a Python module
     │   │
     │   ├── data           <- Scripts to download or generate data
