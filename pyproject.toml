@@ -24,6 +24,7 @@ jsonschema = "*"
 jupyter = "*"
 notebook = "*"
 ipykernel = "*"
+imageio = "*"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"
