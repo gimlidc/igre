@@ -3,6 +3,7 @@ import numpy as np
 import os
 from termcolor import colored
 import imageio
+from stable.filepath import parse
 
 
 def crop(data, left_top_x=None, left_top_y=None, width=None, height=None, rectangle=None, data_key=None, log=None):
@@ -25,7 +26,7 @@ def crop(data, left_top_x=None, left_top_y=None, width=None, height=None, rectan
     """
     if log is None:
         log = print
-    suffix = os.path.splitext(data)[1][1:]
+    folders, filename, suffix = parse(data)
     matrix = None
     if suffix == "npy":  # numpy array
         matrix = np.load(data)
@@ -38,7 +39,7 @@ def crop(data, left_top_x=None, left_top_y=None, width=None, height=None, rectan
             matrix = matfile[data_key]
         else:
             log(colored(f"Multiple variables stored in specified matfile: {datakeys}. "
-                               f"Please use --data-key option to choose one.", "red"))
+                        f"Please use --data-key option to choose one.", "red"))
     if matrix is None:
         log(colored(f"Unsupported file format: {suffix}.", "red"))
         log("Supported formats - *.mat, *.npy")
@@ -56,8 +57,7 @@ def crop(data, left_top_x=None, left_top_y=None, width=None, height=None, rectan
         y1 = rectangle[3]
     log(f"Rectangle coordinates [{x0},{y0},{x1},{y1}]")
 
-    base = os.path.basename(data)
-    output_file = f"{data[:-len(base)]}{base[:-len(suffix)-1]}-crop.{suffix}"
+    output_file = f"{folders}{filename}-crop.{suffix}"
     if suffix == "mat":
         out = {}
         log(matrix[x0:x1, y0:y1, :].shape)
@@ -68,30 +68,16 @@ def crop(data, left_top_x=None, left_top_y=None, width=None, height=None, rectan
     log(colored(f"Output file: {output_file} successfully written.", "green"))
 
 
-def merge_image_files(dir_name, suffix, output, crop, log=print):
-
-    if not os.path.isdir(dir_name):
-        log("ERROR: directory not found")
-
-    imgs = []
-    data_files = sorted(os.listdir(dir_name))
-    log("Loading files ...")
-    for file in data_files:
-        if file[-len(suffix):] == suffix:
-            img = imageio.imread(os.path.join(dir_name, file))
-            if len(img.shape) == 2:
-                img = img.reshape(img.shape + (1,))
-            imgs.append(img)
-            log(f"\t{file} OK, shape: {imgs[-1].shape}")
-
-    shapes = np.array([np.array(img.shape) for img in imgs])
+def stack_badly_sized_arrays(image_names, arrays, crop, log=print):
+    shapes = np.array([np.array(img.shape) for img in arrays])
     size_matches = True
     for dim_name, dim in zip(["width", "height"], [0, 1]):
-        if np.min(shapes[:,dim]) != np.max(shapes[:,dim]):
+        if np.min(shapes[:, dim]) != np.max(shapes[:, dim]):
             log(colored(
                 f"Warning: Image {dim_name}s mismatch: {np.min(shapes[:, dim])} "
-                f"in {data_files[np.argmin(shapes[:, dim])]} "
-                f"vs. {np.max(shapes[:, dim])} in {data_files[np.argmax(shapes[:, dim])]}"), color="yellow")
+                f"in {image_names[np.argmin(shapes[:, dim])]} "
+                f"vs. {np.max(shapes[:, dim])} in {image_names[np.argmax(shapes[:, dim])]}",
+                color="yellow"))
             if crop:
                 log(colored(f"Data will be cropped to min {dim_name} size."), color="green")
             else:
@@ -103,17 +89,32 @@ def merge_image_files(dir_name, suffix, output, crop, log=print):
         height = np.min(shapes[:, 1])
         out = np.zeros((width, height, np.sum(shapes[:, 2])))
         start_dim = 0
-        for img in imgs:
+        for img in arrays:
             out[:, :, start_dim:start_dim + img.shape[2]] = img[:width, :height, :]
             start_dim += img.shape[2]
-
-        np.save(output, out)
     else:  # pad option
         out = np.zeros((np.max(shapes[:, 0]), np.max(shapes[:, 1]), np.sum(shapes[:, 2])))
         start_dim = 0
-        for img in imgs:
+        for img in arrays:
             out[:img.shape[0], :img.shape[1], start_dim:start_dim + img.shape[2]] = img
             start_dim += img.shape[2]
-        np.save(output, out)
+    return out
 
+
+def merge_image_files(dir_name, suffix, output, crop2fit, log=print):
+    if not os.path.isdir(dir_name):
+        log("ERROR: directory not found")
+    imgs = []
+    data_files = sorted(os.listdir(dir_name))
+    log("Loading files ...")
+    for file in data_files:
+        if file[-len(suffix):] == suffix:
+            img = imageio.imread(os.path.join(dir_name, file))
+            if len(img.shape) == 2:
+                img = img.reshape(img.shape + (1,))
+            imgs.append(img)
+            log(f"\t{file} OK, shape: {imgs[-1].shape}")
+
+    out = stack_badly_sized_arrays(data_files, imgs, crop2fit, log)
+    np.save(output, out)
     log(colored(f"Data successfully saved into {output} with shape {out.shape}.", color="green"))
