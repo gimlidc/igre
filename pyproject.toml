@@ -40,7 +40,7 @@ build-backend = "poetry.core.masonry.api"
 ig = "stable.scripts.information_gain:ig"
 crop = "stable.scripts.dataset_preparations:crop"
 joindir = "stable.scripts.dataset_preparations:joindir"
-psd = "stable.scripts.psd_extractor:convert"
+psd = "stable.scripts.psd_extractor:psd"
 
 [tool.pytest.ini_options]
 addopts = "-ra -q -cov"

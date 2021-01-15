@@ -6,16 +6,17 @@ from stable.filepath import change_suffix
 from termcolor import colored
 from stable.dataset.preparation.matrix_3d import stack_badly_sized_arrays
 
-@click.group(invoke_without_command=False)
-def pack():
+@click.group(invoke_without_command=False, help="PSD file parsing and conversions")
+def psd():
     pass
 
-@pack.command()
+
+@psd.command(help="Converts PSD file layers into 3D matrix and store them into npy/mat file.")
 @click.option("-f", "--output-format", help="Output format mat for the *.mat file or *.npy for ndarray")
 @click.option("-g", "--grayscale-layers/--fullcoror-layers", default=True,
               help="PSD layers are typically grayscale images, but in PSD stored as RGBA. This flag converts all layers to grayscale.")
 @click.argument("psd_file")
-def convert(psd_file, output_format: str, grayscale_layers):
+def pack(psd_file, output_format: str, grayscale_layers):
     layer_names, arrays = parse_psd(psd_file)
     out = {
         "layer_names": layer_names,
