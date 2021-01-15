@@ -9,7 +9,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "3.6"
+python = "~3.6"
 numpy = "*"
 scipy = "*"
 tensorflow = "~1.15.0"
@@ -24,6 +24,7 @@ jsonschema = "*"
 jupyter = "*"
 notebook = "*"
 ipykernel = "*"
+imageio = "*"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"
@@ -34,5 +35,12 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-ig = "src.scripts.igcli:ig"
-crop = "src.scripts:crop"
+ig = "stable.scripts.information_gain:ig"
+crop = "stable.scripts.dataset_preparations:crop"
+joindir = "stable.scripts.dataset_preparations:joindir"
+
+[tool.pytest.ini_options]
+addopts = "-ra -q -cov"
+testpaths = [
+    "tests"
+]
