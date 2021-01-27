@@ -1,63 +1,21 @@
-Information Gain with Registration
-==============================
+# IGRE project
 
-Information gain toolbox for multimodal dataset processing
+IGRE means Information Gain with REgistration. It is a scientific project originally focused on ART, but with many 
+overlaps to different areas with multimodal datasets
 
-### Metacentrum RUN
+# Smart CLI
 
-0) enable ssh agent
-```bash
-ssh-add
-```
-1) ssh to metacentrum
-```bash
-sshm alfrid
-```
-2) clone repository
-```bash
-git clone git@github.com:gimlidc/igre.git
-```
-3) install aws cli
-```bash
-module add python-3.6.2-gcc
-pip3 install --user awscli
-# Add path to user bin into your .bash_profile
-```
-4) configure aws profile
-```bash
-aws configure --profile igre
-# follow requested ...
-```
-5) sync data from s3
-```bash
-make sync_data_from_s3
-```
-6) run your scripts
-- customize your clusterize-configuration.yml
-- setup directory for outputs into igre/data/processed folder
-- install dependencies
-```bash
-clusterize submit
-```
-7) sync outputs to s3
-```bash
-make sync_data_to_s3
-```
+Igre contains several tools which can be useful for data manipulation or quick overview
+
+- PSD layer exporter
+- Images to hypercube aggregation (*.npy supported)
+- Information gain calculator
+- 3D matrix cropping tool (*.mat and *.npy format supported)
 
 
-### IGRE test
-```bash
-git clone git@github.com:gimlidc/igre
-cd igre
-make sync_data_from_s3
-pipenv run python src/models/igre-test.py
-```
-
-Project Organization
-------------
+## Project organization
 
     ├── LICENSE
-    ├── Makefile           <- Makefile with commands like `make data` or `make train`
     ├── README.md          <- The top-level README for developers using this project.
     ├── data
     │   ├── external       <- Data from third party sources.
@@ -66,8 +24,6 @@ Project Organization
     │   └── raw            <- The original, immutable data dump.
     │
     ├── docs               <- A default Sphinx project; see sphinx-doc.org for details
-    │
-    ├── models             <- Trained and serialized models, model predictions, or model summaries
     │
     ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
     │                         the creator's initials, and a short `-` delimited description, e.g.
@@ -78,11 +34,9 @@ Project Organization
     ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
     │   └── figures        <- Generated graphics and figures to be used in reporting
     │
-    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-    │                         generated with `pip freeze > requirements.txt`
-    │
     ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
-    ├── src                <- Source code for use in this project.
+    ├── stable             <- tools which are handy and stable, move them here from src, write doc, tests and scritps
+    ├── src                <- Experimental codes, anything you want to test and debug (or parametrize).
     │   ├── __init__.py    <- Makes src a Python module
     │   │
     │   ├── data           <- Scripts to download or generate data

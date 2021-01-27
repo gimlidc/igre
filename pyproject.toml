@@ -1,0 +1,49 @@
+[tool.poetry]
+name = "igre"
+version = "1.0.0"
+description = "Tool for processing multimodal images"
+authors = ["Honza Blažek <gimli@matfyz.cz>"]
+license = "MIT"
+packages = [
+    { include = "src/**/*.py"}
+]
+
+[tool.poetry.dependencies]
+python = "~3.6"
+numpy = "*"
+scipy = "*"
+tensorflow = "~1.15.0"
+termcolor = "*"
+matplotlib = "*"
+PyYAML = "*"
+opencv-python = "*"
+pydot = "*"
+sklearn = "*"
+scikit-learn = "*"
+jsonschema = "*"
+jupyter = "*"
+notebook = "*"
+ipykernel = "*"
+imageio = "*"
+psd-tools = "^1.9.16"
+click = "^7.1.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.1"
+awscli = "^1.18.213"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+ig = "stable.scripts.information_gain:ig"
+crop = "stable.scripts.dataset_preparations:crop"
+joindir = "stable.scripts.dataset_preparations:joindir"
+psd = "stable.scripts.psd_extractor:psd"
+
+[tool.pytest.ini_options]
+addopts = "-ra -q -cov"
+testpaths = [
+    "tests"
+]

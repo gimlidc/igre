@@ -1,12 +1,12 @@
-matfile: '/Users/gimli/Qsync/MATLAB/vlasic-dataset.mat'
+matfile: 'leonardo.mat'
 verbose_level: 1
 crop:
   left_top:
-    x: 0
-    y: 0
+    x: 679
+    y: 871
   size:
-    width: 300
-    height: 400
+    width: 600
+    height: 600
 layers:
   - 1
 input_dimensions:
@@ -15,21 +15,59 @@ input_dimensions:
 output_dimensions:
   min: 27
   max: 27
-expected_max_px_misplacement: 25
-stages:
-  - type: blur
-    params: 51
-    epochs: 75
-  - type: blur
-    params: 21
-    epochs: 75
+expected_max_px_misplacement: 15
+inside_part: 150
+outside_part: 15
+layer_normalization:
+  shift: 2000
+  scale: 0.1
+  rotation: 0.1
+  radial_distortion: 0.01
+  radial_distortion_2: 0.01
+  radial_distortion_3: 0.005
 train:
   batch_size: 2048
-  epochs: 150
+  stages:
+#    - type: mutual_init
+#      blur: 121 # this is blur for the init stage
+#      epochs: 50
+#    - type: blur
+#      params: 81
+#      epochs: 200
+#    - type: mutual_init
+#      blur: 51 # this is blur for the init stage
+#      epochs: 100
+#    - type: blur
+#      params: 31
+#      epochs: 100
+#    - type: mutual_init
+#      blur: 15 # this is blur for the init stage
+#      epochs: 100
+#    - type: blur
+#      params: 9
+#      epochs: 100
+    - type: mutual_init
+      blur: 5 # this is blur for the init stage
+      epochs: 200
+    - type: blur
+      params: 9
+      epochs: 30
+    - type: mutual_init
+      blur: 3 # this is blur for the init stage
+      epochs: 400
+    - type: polish
+      epochs: 200
+    - type: refine
+      epochs: 100
   use_gpu: false
-  shift_learning_multi: 350 # to achieve different learning rate for shift and rotation
   optimizer:
     family: "adam"
-    learning_rate: 0.35
-    beta1: 0.01
-    beta2: 0.85
+    learning_rate: 0.002
+    beta1: 0.9
+    beta2: 0.8
+  refiner:
+    family: "SGD"
+    learning_rate: 0.001
+    decay: 0.01
+    momentum: 0.5
+
