@@ -19,3 +19,4 @@ def load_alma():
 
 def load_firenze():
     return np.load(MATERIALS_FILE)[FIRENZE_NAME]
+
