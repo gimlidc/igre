@@ -1,3 +1,5 @@
+tests/assets/leonardo.npy
+
 # Tensorflow
 *.hdf5
 *.h5

@@ -36,7 +36,7 @@ def __train_networks(inputs, outputs, layers, training_set_size, log):
     if layers is None:
         layers = [25, 25]
     for layer_idx in range(len(layers)):
-        log("Adding dense layer, width = {layers[layer_idx]}")
+        log(f"Adding dense layer, width = {layers[layer_idx]}")
         layer = tf.keras.layers.Dense(layers[layer_idx],
                                       activation='sigmoid', name='Dense' + str(layer_idx))(layer)
     log(f"Adding dense layer, width = {outputs.shape[1]}")
@@ -80,7 +80,8 @@ def __train_networks(inputs, outputs, layers, training_set_size, log):
 def information_gain(visible,
                      target,
                      layers=None,
-                     training_set_size: int = 25000):
+                     training_set_size: int = 25000,
+                     log=print):
     """
     Compute information gain of the target for visible. Usage:
 
@@ -121,7 +122,7 @@ def information_gain(visible,
     outputs = target.reshape((target.shape[0] * target.shape[1], target.shape[2]))
 
     # train ANN
-    model, history = __train_networks(inputs, outputs, layers, training_set_size)
+    model, history = __train_networks(inputs, outputs, layers, training_set_size, log=log)
 
     extrapolation = model.predict(inputs)
     extrapolation = extrapolation.reshape(target.shape)
