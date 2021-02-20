@@ -29,7 +29,7 @@ def get_cnn_dataset(image_path,
                     input_size=3,
                     visible_channels=16,
                     predicted_channel=26,
-                    ):
+                    samples_overlay=True):
     """
     Prepares dataset for CNN training,
      divides the input image into multiple squares of size (input_size) with the middle of target channel as output
@@ -40,7 +40,7 @@ def get_cnn_dataset(image_path,
     input_size : square size
     visible_channels : number of input channels
     predicted_channel : target channel
-
+    samples_overlay : samples do not overlay
     Returns
     -------
     Input channels divided into squares, expected outputs, the target channel with padded width
@@ -50,18 +50,20 @@ def get_cnn_dataset(image_path,
                                    predicted_channel=predicted_channel)
     assert (input_size - 1) % 2 == 0
     px_padding = (input_size - 1) // 2
-    target = target[px_padding:visible.shape[0] - px_padding,
-                    px_padding:visible.shape[1] - px_padding]
+    step_size = 1 if samples_overlay else px_padding + 1
     arr = visible
-    l = []
-    for x in range(px_padding, visible.shape[0] - px_padding):
-        for y in range(px_padding, visible.shape[1] - px_padding):
-            l.append(arr[x - px_padding:x + px_padding + 1, y - px_padding:y + px_padding + 1])
-    inputs = np.array(l)
-    outputs = target.reshape([target.shape[0] * target.shape[1],
-                              1,
-                              1,
-                              target.shape[2]])
+    inputs = []
+    outputs = []
+
+    for x in range(px_padding, visible.shape[0] - px_padding, step_size):
+        for y in range(px_padding, visible.shape[1] - px_padding, step_size):
+            inputs.append(arr[x - px_padding:x + px_padding + 1, y - px_padding:y + px_padding + 1])
+            outputs.append(target[x, y])
+    inputs = np.array(inputs)
+    outputs = np.array(outputs)
+    outputs = outputs.reshape((inputs.shape[0], 1, 1, outputs.shape[-1]))
+    target = target[px_padding:visible.shape[0] - px_padding,
+             px_padding:visible.shape[1] - px_padding]
     return inputs, outputs, target, visible
 
 
