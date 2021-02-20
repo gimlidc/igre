@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from src.models.ig_cnn import wavelength2rgb
+from src.visualization.color_transformation import wavelength2rgb
 
 
 def _draw(pigments, image2color, cmap='viridis'):
