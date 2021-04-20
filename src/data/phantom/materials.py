@@ -2,6 +2,7 @@
 import numpy as np
 import os
 import glob
+import logging
 from enum import Enum, auto
 from scipy.stats import multivariate_normal
 import matplotlib.pyplot as plt
@@ -79,8 +80,8 @@ def get_pigment_dist(pigment, pad=1):
     target_shape = (pad * 2 + 1, pad * 2 + 1, z_size)
     # TODO: Do not waste memory, size known
     samples = []
-    for i in range(pad, pigment.shape[0] - 1):
-        for j in range(pad, pigment.shape[1] - 1):
+    for i in range(pad, pigment.shape[0] - pad):
+        for j in range(pad, pigment.shape[1] - pad):
             sample = pigment[i - pad:i + pad + 1, j - pad:j + pad + 1, :]
             # Normalize from 0 to 1
             assert sample.shape == target_shape
@@ -94,7 +95,7 @@ def get_pigment_dist(pigment, pad=1):
     # TODO: Is it okey to use 0 - 255
     # TODO: Normality test ??
     # TODO: pigment distribution class ???
-
+    logging.warning(f"Pigments samples: {samples.shape} ")
     return multivariate_normal(mean=mean_vector,
                                cov=covariance_matrix,
                                allow_singular=False)

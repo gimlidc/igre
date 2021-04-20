@@ -28,7 +28,6 @@ def draw_pigments_vis(pigments):
 def draw_pigments_nir(pigments, channel=25):
     def _nir(img):
         return img[:, :, channel]
-
     return _draw(pigments, _nir, cmap='gray')
 
 
