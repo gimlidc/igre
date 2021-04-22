@@ -22,12 +22,14 @@ def _draw(pigments, image2color, cmap='viridis'):
 def draw_pigments_vis(pigments):
     def _vis(img):
         return wavelength2rgb(img[:, :, :16])
+
     return _draw(pigments, _vis)
 
 
 def draw_pigments_nir(pigments, channel=25):
     def _nir(img):
         return img[:, :, channel]
+
     return _draw(pigments, _nir, cmap='gray')
 
 
@@ -70,24 +72,37 @@ def _compare_distribution_origin(pigments, pigments_dist, image2color, cmap='vir
 def compare_distribution_origin_vis(pigments, pigments_dist):
     def _vis(img):
         return wavelength2rgb(img[:, :, :16])
+
     return _compare_distribution_origin(pigments, pigments_dist, _vis)
 
 
 def compare_distribution_origin_nir(pigments, pigments_dist, channel=25, cmap='gray'):
     def _nir(img):
         return img[:, :, channel]
+
     return _compare_distribution_origin(pigments, pigments_dist, _nir, cmap)
 
 
-def show_cnn_phantom(cnn_phantoms, pad):
+def show_cnn_phantom(cnn_phantoms, width2height_ration=20):
     rows = []
-    for no_draw, draw in zip(cnn_phantoms['no_draw'], cnn_phantoms['draw']):
+    no_draws, draws = (cnn_phantoms['no_draw'], cnn_phantoms['draw'])
+    assert no_draws.shape[0] == draws.shape[0], f"Number of used pigments differs"
+    assert no_draws.shape[-2] == draws.shape[-2], f"Surroundings of pixel differs"
+    assert no_draws.shape[-3] == draws.shape[-3], f"Surroundings of pixel differs"
+    height = int(np.floor(np.sqrt(no_draws.shape[1] / width2height_ration)))
+    width_no_draw = int(np.floor(no_draws.shape[1] / height))
+    width_draw = int(np.floor(draws.shape[1] / height))
+    no_draws = no_draws[:, :width_no_draw * height, ...]
+    draws = draws[:, :width_draw * height, ...]
+    # Multiply by padding
+    width_no_draw *= no_draws.shape[-2]
+    width_draw *= draws.shape[-2]
+    height *= draws.shape[-3]
+    for pigment_id in range(no_draws.shape[0]):
         rows.append(np.concatenate((
-            np.reshape(no_draw,
-                       ((2*pad + 1) ** 2, no_draw.shape[0], no_draw.shape[-1])),
-            np.reshape(draw,
-                       ((2*pad + 1) ** 2, draw.shape[0], draw.shape[-1]))
+            np.reshape(no_draws[pigment_id], (height, width_no_draw, no_draws.shape[-1])),
+            np.reshape(draws[pigment_id], (height, width_draw, draws.shape[-1]))
         ), axis=1))
     fig = plt.figure()
-    plt.imshow(wavelength2rgb(np.concatenate(rows, axis=0)[:,:,:16]))
-    return fig
+    return wavelength2rgb(np.concatenate(rows, axis=0)[:, :, :16])
+

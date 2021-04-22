@@ -106,20 +106,23 @@ def create_cnn_phantom(pigments_distribution,
                        number_samples,
                        underdrawing_coverage,
                        sample_shape,
-                       seed=42):
+                       seed=42,
+                       correct_outliers=True):
     no_draws = []
     draws = []
-    clear_coverage = int(np.floor(number_samples * underdrawing_coverage))
-    correct_outliers = True
+    samples_per_pigment = number_samples // len(used_materials)
+    underdrawings_per_pigment = int(np.floor(samples_per_pigment * underdrawing_coverage))
+    clear_per_pigment = samples_per_pigment - underdrawings_per_pigment
 
     for i in used_materials:
         clear_dist = pigments_distribution[i]['no_draw']
         underdrawing_dist = pigments_distribution[i]['draw']
-        clear_sample = clear_dist.rvs(clear_coverage, random_state=seed)
-        clear_sample = np.reshape(clear_sample, (clear_coverage, *sample_shape))
-        underdrawing_sample = underdrawing_dist.rvs(number_samples - clear_coverage, random_state=seed)
-        underdrawing_sample = np.reshape(underdrawing_sample, (number_samples - clear_coverage, *sample_shape))
+        clear_sample = clear_dist.rvs(clear_per_pigment, random_state=seed)
+        clear_sample = np.reshape(clear_sample, (clear_per_pigment, *sample_shape))
+        underdrawing_sample = underdrawing_dist.rvs(underdrawings_per_pigment, random_state=seed)
+        underdrawing_sample = np.reshape(underdrawing_sample, (underdrawings_per_pigment, *sample_shape))
         if correct_outliers:
+            logging.warning(f"Some of pigments {i} samples are out of bounds.")
             clear_sample[clear_sample < 0] = 0
             clear_sample[clear_sample > 1] = 1
             underdrawing_sample[underdrawing_sample < 0] = 0
