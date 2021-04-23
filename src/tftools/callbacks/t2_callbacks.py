@@ -29,12 +29,13 @@ class IgreInputCallbacks(tf.keras.callbacks.Callback):
 
 
 class InformationGainCallback(IgreInputCallbacks):
-    def __init__(self, input_image, target_image, logdir):
+    def __init__(self, input_image, target_image, logdir, name='gain'):
         assert int(tf.__version__[0]) == 2, "Tensorboard logging only for tf 2"
         super(InformationGainCallback, self).__init__(input_image, target_image)
         self.outputs = tf.reshape(self.target, self.target.shape[1:])
-        self.max_file_writer = tf.summary.create_file_writer(logdir + "/gain/max")
-        self.mean_file_writer = tf.summary.create_file_writer(logdir + "/gain/mean")
+        self.max_file_writer = tf.summary.create_file_writer(f"{logdir}/{name}/max")
+        self.mean_file_writer = tf.summary.create_file_writer(f"{logdir}/{name}/mean")
+        self._name = name
 
     def gain(self):
         # calculate gain and print it out
@@ -49,9 +50,9 @@ class InformationGainCallback(IgreInputCallbacks):
 
     def on_epoch_end(self, epoch, logs=None):
         with self.max_file_writer.as_default():
-            tf.summary.scalar('Information Gain', data=self.gain_max(), step=epoch)
+            tf.summary.scalar(f'Information Gain {self._name}', data=self.gain_max(), step=epoch)
         with self.mean_file_writer.as_default():
-            tf.summary.scalar('Information Gain', data=self.gain_mean(), step=epoch)
+            tf.summary.scalar(f'Information Gain {self._name}', data=self.gain_mean(), step=epoch)
 
 
 class ImageNirCallback(IgreInputCallbacks):
