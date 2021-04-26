@@ -103,6 +103,5 @@ def show_cnn_phantom(cnn_phantoms, width2height_ration=20):
             np.reshape(no_draws[pigment_id], (height, width_no_draw, no_draws.shape[-1])),
             np.reshape(draws[pigment_id], (height, width_draw, draws.shape[-1]))
         ), axis=1))
-    fig = plt.figure()
     return wavelength2rgb(np.concatenate(rows, axis=0)[:, :, :16])
 

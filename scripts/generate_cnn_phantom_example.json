@@ -1,0 +1,20 @@
+{
+  "name" : "phantom_example",
+  "pad": 1,
+  "phantom_counts" : 3,
+  "validation_split" : 0.2,
+  "extractor_args": {
+    "vis_wildcard": "data/raw/phantoms/TIF.8bit_norm.255/Ch*_VIS_*.tif",
+    "nir_wildcard": "data/raw/phantoms/TIF.8bit_norm.255/Ch*_NIR_*.tif",
+    "mask_path": "data/raw/phantoms/bianco_mask.mat",
+    "mask_name": "res_2d",
+    "padding": 6,
+    "max_value":255.0
+  },
+  "phantom_args": {
+    "used_materials": 12,
+    "underdrawing_coverage": 0.75,
+    "number_samples": 100,
+    "seed": 42
+  }
+}

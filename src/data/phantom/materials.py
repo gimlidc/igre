@@ -110,6 +110,10 @@ def create_cnn_phantom(pigments_distribution,
                        correct_outliers=True):
     no_draws = []
     draws = []
+    # If used_materials is number generate pigments randomly
+    if not isinstance(used_materials, list):
+        used_materials = [int(i) for i in np.random.choice(len(pigments_distribution), used_materials, replace=False)]
+
     samples_per_pigment = number_samples // len(used_materials)
     underdrawings_per_pigment = int(np.floor(samples_per_pigment * underdrawing_coverage))
     clear_per_pigment = samples_per_pigment - underdrawings_per_pigment
@@ -129,4 +133,4 @@ def create_cnn_phantom(pigments_distribution,
             underdrawing_sample[underdrawing_sample > 1] = 1
         draws.append(underdrawing_sample)
         no_draws.append(clear_sample)
-    return {'draw': draws, 'no_draw': no_draws}
+    return {'draw': np.array(draws), 'no_draw': np.array(no_draws)}
