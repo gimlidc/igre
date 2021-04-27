@@ -9,10 +9,10 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "~3.7"
+python = "~3.7.9"
 numpy = "*"
 scipy = "*"
-tensorflow = "~2.3.0"
+tensorflow = "~2.3.2"
 termcolor = "*"
 matplotlib = "*"
 PyYAML = "*"
