@@ -28,6 +28,7 @@ imageio = "*"
 psd-tools = "^1.9.16"
 click = "^7.1.2"
 tensorboard = "*"
+colormath = "^3.0.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"
