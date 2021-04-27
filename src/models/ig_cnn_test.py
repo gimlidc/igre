@@ -41,7 +41,7 @@ def ig_cnn(image_path, model_def, input_size, log_name, log_root):
     # Parameters
     logdir = os.path.join(log_root, hparams['log_name'])
     assert not(os.path.exists(logdir)), f"The log dir of given name exists: {logdir}"
-    # Input Data
+    # Input phantoms
     inputs, outputs, pad_output, nopad_input = get_cnn_dataset(hparams['image_path'],
                                                                input_size=hparams['input_size'])
     # Model Definition
@@ -50,7 +50,7 @@ def ig_cnn(image_path, model_def, input_size, log_name, log_root):
                   loss='mean_squared_error',
                   metrics=['mean_squared_error'])
 
-    # Data split
+    # phantoms split
     training_set_size = 2500
     perm = np.random.permutation(inputs.shape[0])
     ins = inputs[perm[:training_set_size], :]

@@ -14,7 +14,7 @@ ROOT_DIR = os.path.abspath(os.curdir)
 
 def data_crop(config, dataset):
     if "crop" in config:
-        print("Data crop ... " + colored("YES", "green") + ":", Verbose.debug)
+        print("phantoms crop ... " + colored("YES", "green") + ":", Verbose.debug)
         print("\t["
               + str(config["crop"]["left_top"]["x"]) + ":"
               + str(config["crop"]["left_top"]["x"] + config["crop"]["size"]["height"]) + ", "
@@ -25,7 +25,7 @@ def data_crop(config, dataset):
                   config["crop"]["left_top"]["y"]: (config["crop"]["left_top"]["y"] + config["crop"]["size"]["width"]),
                   :]
     else:
-        print("Data crop: " + colored("NO", "red"), Verbose.debug)
+        print("phantoms crop: " + colored("NO", "red"), Verbose.debug)
 
     return dataset
 
@@ -60,7 +60,7 @@ def igre_test(conf, transformation, output):
     else:
         with open(config["numpyfile"]["data"]) as infile:
             dataset = np.load(infile)
-    Verbose.print("Data stats (before normalization): min = " + str(np.min(dataset)) +
+    Verbose.print("phantoms stats (before normalization): min = " + str(np.min(dataset)) +
                   " max = " + str(np.max(dataset)), Verbose.debug)
     # data normalization - ranged
     dataset = (dataset - np.min(dataset)) / (np.max(dataset) - np.min(dataset))

@@ -101,9 +101,15 @@ def str2layer(text, option_separator='-'):
             'activation': options[2] if len(options) > 1 else None,
         }
         return keras.layers.Dense(**kwargs)
+    elif text[0] == 'f':
+        assert len(options) == 1, f"No args expected for flatten layer, {text} has {len(options)}"
+        return keras.layers.Flatten()
+    else:
+        raise NotImplementedError(f"Unknown layer {text}")
 
 
 def ig_cnn_model(def_text,
+                 input_size=(None, None),
                  input_channels=16,
                  output_units=1,
                  name='IG-CNN',
@@ -114,6 +120,7 @@ def ig_cnn_model(def_text,
     Parameters
     ----------
     def_text : String represents the model
+    input_size:
     input_channels :
     output_units :
     name :
@@ -123,7 +130,7 @@ def ig_cnn_model(def_text,
     -------
     keras.Model
     """
-    input_shape = [None, None, input_channels]
+    input_shape = [*input_size, input_channels]
     layers = [keras.layers.Input(shape=input_shape)]
 
     layers_text = def_text.split(layer_separator)

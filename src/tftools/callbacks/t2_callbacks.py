@@ -9,44 +9,35 @@ class IgreInputCallbacks(tf.keras.callbacks.Callback):
         assert int(tf.__version__[0]) == 2, "Tensorboard logging only for tf 2"
         super(IgreInputCallbacks, self).__init__()
         # Create batch dimension expects [width, height, channels]
-        self.inputs = np.expand_dims(input_image, 0)
-        self.target = tf.convert_to_tensor(np.expand_dims(target_image, 0), tf.double)
-        self.flatten_input = None
 
-    def on_train_begin(self, logs=None):
-        # NOTE: Workaround for only dense network
-        if len(self.model.input_shape) == 2:
-            self.flatten_input = self.inputs.reshape(
-                (self.inputs.shape[1] * self.inputs.shape[2], self.inputs.shape[-1]))
+        self.inputs = tf.convert_to_tensor(input_image, tf.float32)
+        self.target = tf.convert_to_tensor(target_image, tf.float32)
 
     def _predict(self):
-        # TODO: This workaround is slow
         assert self.model is not None
-        if self.flatten_input is None:
-            return self.model.predict(self.inputs)
-        else:
-            return self.model.predict(self.flatten_input).reshape(self.target.shape)
+        output = self.model.predict(self.inputs)
+        return output
 
 
 class InformationGainCallback(IgreInputCallbacks):
     def __init__(self, input_image, target_image, logdir, name='gain'):
         assert int(tf.__version__[0]) == 2, "Tensorboard logging only for tf 2"
         super(InformationGainCallback, self).__init__(input_image, target_image)
-        self.outputs = tf.reshape(self.target, self.target.shape[1:])
         self.max_file_writer = tf.summary.create_file_writer(f"{logdir}/{name}/max")
         self.mean_file_writer = tf.summary.create_file_writer(f"{logdir}/{name}/mean")
         self._name = name
 
     def gain(self):
         # calculate gain and print it out
-        gain = abs(self.outputs - self._predict()) / (np.prod(self.outputs.shape[0]))
+        prediction = tf.squeeze(self._predict())
+        gain = tf.abs(self.target - prediction)
         return gain
 
     def gain_max(self):
-        return np.amax(self.gain())
+        return tf.math.reduce_max(self.gain())
 
     def gain_mean(self):
-        return np.mean(self.gain())
+        return tf.reduce_mean(self.gain())
 
     def on_epoch_end(self, epoch, logs=None):
         with self.max_file_writer.as_default():
