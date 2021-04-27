@@ -26,14 +26,15 @@ for file in samples:
                       loss='mean_squared_error',
                       metrics=['mean_squared_error'])
 
+    # TODO: Remove the sample number
     _log_dir = os.path.join(config['log_root'],
                             config['log_name'],
-                            'cnn')
+                            file[-17])
 
     model_cnn_callbacks = [tf.keras.callbacks.TensorBoard(log_dir=_log_dir),
-                           hp.KerasCallback(_log_dir, {**config}),
-                           InformationGainCallback(valid_X, valid_y, _log_dir, 'valid_gain'),
-                           InformationGainCallback(train_X, train_y, _log_dir, 'train_gain'),
+                           hp.KerasCallback(_log_dir, {**config, "phantom_sample": int(file[-17])}),
+                           InformationGainCallback(valid_X, valid_y, _log_dir, 'valid'),
+                           InformationGainCallback(train_X, train_y, _log_dir, 'train'),
                            # NOTE: This callback has to be last
                            tf.keras.callbacks.EarlyStopping(patience=6, min_delta=10 ** -5), ]
 
