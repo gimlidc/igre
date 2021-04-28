@@ -24,18 +24,22 @@ def cnn_experiment(config_file):
         train_X, train_y = phantom['train'][..., :16], phantom['train'][..., pad, pad, predicted_channel]
         valid_X, valid_y = phantom['valid'][..., :16], phantom['valid'][..., pad, pad, predicted_channel]
 
-        model_cnn = ig_cnn_model(config['model_def'], input_size=(config['phantom_size'], config['phantom_size']))
+        model_cnn = ig_cnn_model(config['model_def'],
+                                 input_size=(config['phantom_size'], config['phantom_size']))
         model_cnn.compile(optimizer='adam',
                           loss='mean_squared_error',
                           metrics=['mean_squared_error'])
 
         # TODO: Remove the sample number
+        sample_number = int(os.path.basename(file).split('_')[0])
         _log_dir = os.path.join(config['log_root'],
                                 config['log_name'],
-                                file[-17])
+                                sample_number)
 
         model_cnn_callbacks = [tf.keras.callbacks.TensorBoard(log_dir=_log_dir),
-                               hp.KerasCallback(_log_dir, {**config, "phantom_sample": int(file[-17])}),
+                               hp.KerasCallback(_log_dir, {**config,
+                                                           "phantom_sample": sample_number,
+                                                           "phantom_file": file}),
                                InformationGainCallback(valid_X, valid_y, _log_dir, 'valid'),
                                InformationGainCallback(train_X, train_y, _log_dir, 'train'),
                                # NOTE: This callback has to be last
