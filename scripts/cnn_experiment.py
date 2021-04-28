@@ -34,7 +34,7 @@ def cnn_experiment(config_file):
         sample_number = int(os.path.basename(file).split('_')[0])
         _log_dir = os.path.join(config['log_root'],
                                 config['log_name'],
-                                sample_number)
+                                str(sample_number))
 
         model_cnn_callbacks = [tf.keras.callbacks.TensorBoard(log_dir=_log_dir),
                                hp.KerasCallback(_log_dir, {**config,
