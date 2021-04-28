@@ -1,5 +1,6 @@
 import scipy.io as sio
 from tensorflow import keras
+import tensorflow as tf
 import numpy as np
 
 
@@ -141,3 +142,32 @@ def ig_cnn_model(def_text,
                                      activation='sigmoid'))
 
     return keras.Sequential(layers=layers, name=f'{name}')
+
+
+def get_ig_dense(layers=[25, 25],
+                 input_shape=(16),
+                 output_shape=(1)):
+    input_layer = keras.layers.Input(shape=input_shape,
+                                     dtype=tf.float32,
+                                     name='InputLayer')
+    layer = input_layer
+    if layers is None:
+        layers = [25, 25]
+    for layer_idx in range(len(layers)):
+        layer = keras.layers.Dense(layers[layer_idx],
+                                   activation='sigmoid',
+                                   name='Dense' + str(layer_idx))(layer)
+
+    flat_layer = keras.layers.Flatten()(layer)
+    output_layer = keras.layers.Dense(output_shape,
+                                      activation='sigmoid',
+                                      name='Output')(flat_layer)
+
+    model = keras.models.Model(inputs=input_layer,
+                               outputs=output_layer)
+
+    model.compile(optimizer='adam',
+                  loss='mean_squared_error',
+                  metrics=['mean_squared_error']
+                  )
+    return model
