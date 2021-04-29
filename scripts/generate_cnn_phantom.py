@@ -15,9 +15,8 @@ def phantom_validation_train_split(phantom, validation_size=0.2, dtype=np.float3
         return sample[:, perm[:val_size]], sample[:, perm[val_size:]]
     valid_draw, train_draw = _split(phantom['draw'])
     valid_no_draw, train_no_draw = _split(phantom['no_draw'])
-    # NOTE: concatenate with dtype requires numpy >= 1.20
-    valid = np.concatenate((valid_draw, valid_no_draw), axis=1, dtype=dtype)
-    train = np.concatenate((train_draw, train_no_draw), axis=1, dtype=dtype)
+    valid = np.concatenate((valid_draw, valid_no_draw), axis=1).astype(dtype)
+    train = np.concatenate((train_draw, train_no_draw), axis=1).astype(dtype)
     # Merge pigments
     valid = np.reshape(valid, (np.prod(valid.shape[:2]), *valid.shape[2:]))
     train = np.reshape(train, (np.prod(train.shape[:2]), *train.shape[2:]))
