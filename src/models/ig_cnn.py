@@ -62,7 +62,7 @@ def get_cnn_dataset(image_path,
             outputs.append(target[x, y])
     inputs = np.array(inputs)
     outputs = np.array(outputs)
-    outputs = outputs.reshape((inputs.shape[0], 1, 1, outputs.shape[-1]))
+    outputs = outputs.reshape((inputs.shape[0], outputs.shape[-1]))
     target = target[px_padding:visible.shape[0] - px_padding,
              px_padding:visible.shape[1] - px_padding]
     return inputs, outputs, target, visible

@@ -29,7 +29,7 @@ class InformationGainCallback(IgreInputCallbacks):
 
     def gain(self):
         # calculate gain and print it out
-        prediction = tf.squeeze(self._predict())
+        prediction = tf.reshape(self._predict(), self.target.shape)
         gain = tf.abs(self.target - prediction)
         return gain
 
@@ -65,28 +65,29 @@ class ImageNirCallback(IgreInputCallbacks):
 
 
 class ImagesCallback(IgreInputCallbacks):
-    def __init__(self, input_image, target_image, logdir):
+    def __init__(self, input_image, target_image, pad,  logdir):
         assert int(tf.__version__[0]) == 2, "Tensorboard logging only for tf 2"
         super(ImagesCallback, self).__init__(input_image, target_image)
         # Create batch dimension expects [width, height, channels]
-        pad = ((input_image.shape[:2][0] - target_image.shape[:2][0]) // 2)
-        pad_input = input_image[pad:input_image.shape[0] - pad,
-                    pad:input_image.shape[1] - pad]
-        self.visible = tf.convert_to_tensor(np.expand_dims(wavelength2rgb(pad_input), 0), tf.double)
+        pad_input = input_image[:,
+                                pad:input_image.shape[1] - pad,
+                                pad:input_image.shape[2] - pad]
+        self.visible = tf.convert_to_tensor(np.squeeze(wavelength2rgb(pad_input)), tf.float32)
         self.image_file_writer = tf.summary.create_file_writer(os.path.join(logdir, 'imgs'))
 
     def _image(self):
         # calculate gain and print it out
-        approx = self._predict()
+        approx = tf.reshape(self._predict(), self.target.shape)
         diff = (self.target - approx) - np.min(self.target - approx)
         diff = tf.image.grayscale_to_rgb(tf.convert_to_tensor(diff / np.max(diff)))
-        approx = tf.image.grayscale_to_rgb(tf.convert_to_tensor(approx, tf.double))
-        target = tf.image.grayscale_to_rgb(self.target, tf.double)
+        approx = tf.image.grayscale_to_rgb(tf.convert_to_tensor(approx, tf.float32))
+        target = tf.image.grayscale_to_rgb(self.target, tf.float32)
         imgs = tf.concat(
-            [tf.concat([target, diff], axis=2),
-             tf.concat([approx, self.visible], axis=2)],
+            [tf.concat([target, diff], axis=0),
+             tf.concat([approx, self.visible], axis=0)],
             axis=1)
-        return imgs
+
+        return tf.expand_dims(imgs, axis=0)
 
     def on_epoch_end(self, epoch, logs=None):
         with self.image_file_writer.as_default():

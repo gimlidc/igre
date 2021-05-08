@@ -3,6 +3,7 @@ import json
 import numpy as np
 import click
 import tensorflow as tf
+import logging
 from glob import glob
 from src.models.ig_cnn import ig_cnn_model
 from src.tftools.callbacks.t2_callbacks import InformationGainCallback
@@ -12,6 +13,7 @@ from tensorboard.plugins.hparams import api as hp
 @click.command()
 @click.option('-c', '--config_file', required=True, help='Config, for further details', type=click.File('r'))
 def cnn_experiment(config_file):
+    logging.warning(f"Numpy {np.version.version}, TensorFlow {tf.__version__}")
     config = json.load(config_file)
 
     phantom_wildcard = os.path.join(config['phantom_root'], config['phantom_file_wildcard'])
@@ -29,6 +31,7 @@ def cnn_experiment(config_file):
         model_cnn.compile(optimizer='adam',
                           loss='mean_squared_error',
                           metrics=['mean_squared_error'])
+
 
         # TODO: Remove the sample number
         sample_number = int(os.path.basename(file).split('_')[0])

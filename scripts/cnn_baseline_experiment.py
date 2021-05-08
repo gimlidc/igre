@@ -4,7 +4,7 @@ import numpy as np
 import click
 import tensorflow as tf
 from glob import glob
-from src.models.ig_cnn import ig_cnn_model, get_ig_dense
+from src.models.ig_cnn import get_ig_dense
 from src.tftools.callbacks.t2_callbacks import InformationGainCallback
 from tensorboard.plugins.hparams import api as hp
 
