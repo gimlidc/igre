@@ -142,9 +142,12 @@ def ig_cnn_model(def_text,
     output_layer = keras.layers.Conv2D(filters=1,
                                        kernel_size=1,
                                        activation='sigmoid')
-    layers.append(output_layer)
 
-    return keras.Sequential(layers=layers, name=f'{name}')
+    layers.append(output_layer)
+    layers.append(keras.layers.Flatten())
+    model = keras.Sequential(layers=layers, name=f'{name}')
+
+    return model
 
 
 def get_ig_dense(layers=[25, 25],
